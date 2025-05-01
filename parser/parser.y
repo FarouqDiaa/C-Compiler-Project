@@ -43,7 +43,7 @@ extern int line_num;
 
 %%
 
-program: headers main '(' ')' '{' body return_stmt '}'
+program: headers main '(' ')' '{' stmt_list return_stmt '}'
     ;
 
 headers: INCLUDE headers
@@ -59,50 +59,95 @@ datatype: INT
     | VOID
     ;
 
-body:
-      '{' body '}'
-    | FOR '(' for_stmt ')' body
-    | WHILE '(' condition ')' body
-    | IF '(' condition ')' body %prec LOWER_THAN_ELSE
-    | IF '(' condition ')' body ELSE body
-    | statement
-    | body body
-    | PRINTFF '(' STR opt_args ')' SEMI
-    | SCANFF '(' STR ',' '&' ID ')' SEMI
+stmt_list: /* empty */
+    | stmt_list stmt
     ;
 
-opt_args:                        
-        /* empty */
-    | ',' arg_list
+stmt: block_stmt
+    | if_stmt
+    | for_stmt
+    | while_stmt
+    | expr_stmt
+    | decl_stmt
+    | print_stmt
+    | scan_stmt
     ;
 
-arg_list:
-        expression
-    | arg_list ',' expression
+block_stmt: '{' stmt_list '}'
     ;
 
-for_stmt:
-        simple_expr SEMI simple_expr SEMI simple_expr
+if_stmt: IF '(' condition ')' stmt %prec LOWER_THAN_ELSE
+    | IF '(' condition ')' stmt ELSE stmt
     ;
 
-simple_expr:
-        /* empty */
-    | expression
+for_stmt: FOR '(' for_init SEMI for_cond SEMI for_update ')' stmt
     ;
 
-condition: expression comparison expression
-    | TRUE 
+for_init: /* empty */
+    | non_decl_expr
+    | declaration
+    ;
+
+for_cond: /* empty */
+    | condition
+    ;
+
+for_update: /* empty */
+    | non_decl_expr
+    ;
+
+non_decl_expr: assign_expr
+    | arithmetic_expr
+    | unary_expr
+    ;
+
+unary_expr: ID UNARY
+    | UNARY ID
+    ;
+
+while_stmt: WHILE '(' condition ')' stmt
+    ;
+
+expr_stmt: non_decl_expr SEMI
+    ;
+
+decl_stmt: declaration SEMI
+    ;
+
+print_stmt: PRINTFF '(' STR print_args ')' SEMI
+    ;
+
+print_args: /* empty */
+    | ',' print_arg_list
+    ;
+
+print_arg_list: non_decl_expr
+    | print_arg_list ',' non_decl_expr
+    ;
+
+scan_stmt: SCANFF '(' STR ',' '&' ID ')' SEMI
+    ;
+
+condition: boolean_expr
+    ;
+
+boolean_expr: boolean_term
+    | boolean_expr OR boolean_term
+    ;
+
+boolean_term: boolean_factor
+    | boolean_term AND boolean_factor
+    ;
+
+boolean_factor: TRUE
     | FALSE
-    | condition AND condition
-    | condition OR condition
+    | relation_expr
+    | '(' boolean_expr ')'
     ;
 
-value: NUMBER
-     | FLOAT_NUM
-     | STR
-     | ID
-     | CHAR_LITERAL
-     ;
+relation_expr: arithmetic_expr
+    | arithmetic_expr comparison arithmetic_expr
+    ;
 
 comparison: LT
     | GT
@@ -112,41 +157,37 @@ comparison: LT
     | NE
     ;
 
-statement: declaration SEMI
-    | expression SEMI
-    | ID ASSIGN expression SEMI
-    | ID comparison expression SEMI
-    | ID UNARY SEMI
-    | UNARY ID SEMI
+declaration: datatype ID
+    | datatype ID ASSIGN non_decl_expr
     ;
 
-declaration: datatype ID ASSIGN expression
-    | datatype ID
+assign_expr: ID ASSIGN non_decl_expr
     ;
 
-expression:
-        ID ASSIGN expression
-    | datatype ID ASSIGN expression
-    | datatype ID
-    | term
-    | expression ADD term
-    | expression SUBTRACT term
-    | ID UNARY
-    | UNARY ID
+arithmetic_expr: term
+    | arithmetic_expr ADD term
+    | arithmetic_expr SUBTRACT term
     ;
 
-term: term MULTIPLY factor
+term: factor
+    | term MULTIPLY factor
     | term DIVIDE factor
-    | term MODULO factor     
-    | factor
+    | term MODULO factor
     ;
 
 factor: value
-    | '(' expression ')'
+    | '(' non_decl_expr ')'
     ;
 
-return_stmt: RETURN value SEMI
-    |
+value: NUMBER
+    | FLOAT_NUM
+    | STR
+    | ID
+    | CHAR_LITERAL
+    ;
+
+return_stmt: RETURN non_decl_expr SEMI
+    | /* empty */
     ;
 
 %%
