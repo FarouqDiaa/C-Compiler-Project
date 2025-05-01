@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "symbol_table.h"
-#include "semantic_analyzer.h"
 
 void yyerror(const char *s);
 int yylex();
@@ -23,6 +21,7 @@ extern int line_num;
 %token <fnum> FLOAT_NUM
 %token <str> ID
 %token <str> STR
+%token <str> CHAR_LITERAL
 
 %token IF ELSE WHILE FOR
 %token INT FLOAT CHAR VOID
@@ -35,9 +34,12 @@ extern int line_num;
 %token AND OR
 
 %token ADD SUBTRACT MULTIPLY DIVIDE
+%token MODULO
 %token UNARY
 %token SEMI
 
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
 
 %%
 
@@ -47,7 +49,7 @@ program: headers main '(' ')' '{' body return_stmt '}'
 headers: INCLUDE headers
    |
    ;
-    
+
 main: datatype ID
     ;
 
@@ -57,29 +59,50 @@ datatype: INT
     | VOID
     ;
 
-body: FOR '(' statement condition statement ')' '{' body '}'
-    | WHILE '(' condition ')' '{' body '}'
-    | IF '(' condition ')' '{' body '}' ELSE statement
-    | IF '(' condition ')' '{' body '}'
-    | statement 
+body:
+      '{' body '}'
+    | FOR '(' for_stmt ')' body
+    | WHILE '(' condition ')' body
+    | IF '(' condition ')' body %prec LOWER_THAN_ELSE
+    | IF '(' condition ')' body ELSE body
+    | statement
     | body body
-    | PRINTFF '(' STR ')' SEMI
+    | PRINTFF '(' STR opt_args ')' SEMI
     | SCANFF '(' STR ',' '&' ID ')' SEMI
     ;
 
-condition: value comparison value
+opt_args:                        
+        /* empty */
+    | ',' arg_list
+    ;
+
+arg_list:
+        expression
+    | arg_list ',' expression
+    ;
+
+for_stmt:
+        simple_expr SEMI simple_expr SEMI simple_expr
+    ;
+
+simple_expr:
+        /* empty */
+    | expression
+    ;
+
+condition: expression comparison expression
     | TRUE 
     | FALSE
     | condition AND condition
     | condition OR condition
     ;
 
-
 value: NUMBER
-    | FLOAT_NUM
-    | STR
-    | ID
-    ;
+     | FLOAT_NUM
+     | STR
+     | ID
+     | CHAR_LITERAL
+     ;
 
 comparison: LT
     | GT
@@ -89,41 +112,54 @@ comparison: LT
     | NE
     ;
 
-statement: datatype ID ASSIGN expression SEMI
-    | datatype ID SEMI
-    | ID ASSIGN expression SEMI 
+statement: declaration SEMI
+    | expression SEMI
+    | ID ASSIGN expression SEMI
     | ID comparison expression SEMI
     | ID UNARY SEMI
     | UNARY ID SEMI
     ;
 
-statement: declaration SEMI
-    | ID ASSIGN expression SEMI
-    | ID UNARY SEMI
-    | UNARY ID SEMI
+declaration: datatype ID ASSIGN expression
+    | datatype ID
     ;
 
-declaration: datatype ID ASSIGN expression SEMI
-    | datatype ID SEMI
-
-expression: expression ADD term
+expression:
+        ID ASSIGN expression
+    | datatype ID ASSIGN expression
+    | datatype ID
+    | term
+    | expression ADD term
     | expression SUBTRACT term
-    | term MULTIPLY factor
+    | ID UNARY
+    | UNARY ID
+    ;
+
+term: term MULTIPLY factor
     | term DIVIDE factor
+    | term MODULO factor     
     | factor
     ;
 
 factor: value
-
+    | '(' expression ')'
+    ;
 
 return_stmt: RETURN value SEMI
     |
     ;
 
-
 %%
 
-int yyerror(char *s) {
+void yyerror(const char *s) {
     fprintf(stderr, "Syntax error at line %d: %s\n", line_num, s);
-    return 0;
+}
+
+int main() {
+    printf("Parsing started...\n");
+    int result = yyparse();
+    if (result == 0) {
+        printf("Parsing completed successfully.\n");
+    }
+    return result;
 }

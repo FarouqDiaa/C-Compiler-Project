@@ -1,5 +1,5 @@
-#include "semantic_analyzer.h"
+// #include "semantic_analyzer.h"
 
-void semantic_analysis() {
-    print_symbol_table();
-}
+// void semantic_analysis() {
+//     print_symbol_table();
+// }

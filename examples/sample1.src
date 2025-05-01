@@ -1,0 +1,53 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Main function
+int main() {
+    // Variable declarations
+    int x;          // Integer declaration
+    float y;        // Float declaration
+    char c;         // Character declaration
+    int z = 10;     // Integer declaration with initialization
+    float pi = 3.14; // Float declaration with initialization
+
+    // Assignments and expressions
+    x = 5;          // Assignment
+    y = x + 2.5;    // Expression
+    c = 'A';        // Character assignment
+
+    // If-else control structure
+    if (x > 0) {
+        printf("x is positive\n");
+    } else {
+        printf("x is not positive\n");
+    }
+
+    // While loop
+    while (x > 0) {
+        printf("x = %d\n", x);
+        x--; // Decrement x
+    }
+
+    // For loop
+    for (int i = 0; i < 5; i++) {
+        printf("i = %d\n", i);
+    }
+
+    // Function calls
+    printf("Enter a number: ");
+    scanf("%d", &z); // Input a number
+
+    // Nested if-else
+    if (z > 0) {
+        if (z % 2 == 0) {
+            printf("z is positive and even\n");
+        } else {
+            printf("z is positive and odd\n");
+        }
+    } else {
+        printf("z is not positive\n");
+    }
+
+    // Return statement
+    return 0;
+}

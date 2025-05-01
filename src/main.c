@@ -1,10 +1,10 @@
-#include <stdio.h>
-#include "semantic_analyzer.h"
+// #include <stdio.h>
+// #include "semantic_analyzer.h"
 
-extern int yyparse();
+// extern int yyparse();
 
-int main() {
-    yyparse();
-    semantic_analysis();
-    return 0;
-}
+// int main() {
+//     yyparse();
+//     //semantic_analysis();
+//     return 0;
+// }
