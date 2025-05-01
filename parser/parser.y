@@ -43,14 +43,33 @@ extern int line_num;
 
 %%
 
-program: headers main '(' ')' '{' stmt_list return_stmt '}'
+program: translation_unit
     ;
 
-headers: INCLUDE headers
-   |
-   ;
+translation_unit: external_declaration
+    | translation_unit external_declaration
+    ;
 
-main: datatype ID
+external_declaration: function_definition
+    | declaration SEMI
+    | include_directive
+    ;
+
+include_directive: INCLUDE
+    ;
+
+function_definition: datatype ID '(' parameter_list ')' compound_stmt
+    | datatype ID '(' ')' compound_stmt
+    ;
+
+parameter_list: parameter_declaration
+    | parameter_list ',' parameter_declaration
+    ;
+
+parameter_declaration: datatype ID
+    ;
+
+compound_stmt: '{' stmt_list '}'
     ;
 
 datatype: INT
@@ -63,7 +82,7 @@ stmt_list: /* empty */
     | stmt_list stmt
     ;
 
-stmt: block_stmt
+stmt: compound_stmt
     | if_stmt
     | for_stmt
     | while_stmt
@@ -71,44 +90,33 @@ stmt: block_stmt
     | decl_stmt
     | print_stmt
     | scan_stmt
+    | return_stmt
     ;
 
-block_stmt: '{' stmt_list '}'
-    ;
-
-if_stmt: IF '(' condition ')' stmt %prec LOWER_THAN_ELSE
-    | IF '(' condition ')' stmt ELSE stmt
+if_stmt: IF '(' expr ')' stmt %prec LOWER_THAN_ELSE
+    | IF '(' expr ')' stmt ELSE stmt
     ;
 
 for_stmt: FOR '(' for_init SEMI for_cond SEMI for_update ')' stmt
     ;
 
 for_init: /* empty */
-    | non_decl_expr
+    | expr
     | declaration
     ;
 
 for_cond: /* empty */
-    | condition
+    | expr
     ;
 
 for_update: /* empty */
-    | non_decl_expr
+    | expr
     ;
 
-non_decl_expr: assign_expr
-    | arithmetic_expr
-    | unary_expr
+while_stmt: WHILE '(' expr ')' stmt
     ;
 
-unary_expr: ID UNARY
-    | UNARY ID
-    ;
-
-while_stmt: WHILE '(' condition ')' stmt
-    ;
-
-expr_stmt: non_decl_expr SEMI
+expr_stmt: expr SEMI
     ;
 
 decl_stmt: declaration SEMI
@@ -118,76 +126,86 @@ print_stmt: PRINTFF '(' STR print_args ')' SEMI
     ;
 
 print_args: /* empty */
-    | ',' print_arg_list
+    | ',' arg_list
     ;
 
-print_arg_list: non_decl_expr
-    | print_arg_list ',' non_decl_expr
+arg_list: expr
+    | arg_list ',' expr
     ;
 
 scan_stmt: SCANFF '(' STR ',' '&' ID ')' SEMI
     ;
 
-condition: boolean_expr
+expr: assign_expr
     ;
 
-boolean_expr: boolean_term
-    | boolean_expr OR boolean_term
+assign_expr: logical_expr
+    | ID ASSIGN assign_expr
     ;
 
-boolean_term: boolean_factor
-    | boolean_term AND boolean_factor
+logical_expr: logical_or_expr
     ;
 
-boolean_factor: TRUE
+logical_or_expr: logical_and_expr
+    | logical_or_expr OR logical_and_expr
+    ;
+
+logical_and_expr: equality_expr
+    | logical_and_expr AND equality_expr
+    ;
+
+equality_expr: relational_expr
+    | equality_expr EQ relational_expr
+    | equality_expr NE relational_expr
+    ;
+
+relational_expr: additive_expr
+    | relational_expr LT additive_expr
+    | relational_expr GT additive_expr
+    | relational_expr LE additive_expr
+    | relational_expr GE additive_expr
+    ;
+
+additive_expr: multiplicative_expr
+    | additive_expr ADD multiplicative_expr
+    | additive_expr SUBTRACT multiplicative_expr
+    ;
+
+multiplicative_expr: unary_expr
+    | multiplicative_expr MULTIPLY unary_expr
+    | multiplicative_expr DIVIDE unary_expr
+    | multiplicative_expr MODULO unary_expr
+    ;
+
+unary_expr: postfix_expr
+    | UNARY unary_expr
+    ;
+
+postfix_expr: primary_expr
+    | postfix_expr UNARY
+    ;
+
+primary_expr: ID
+    | NUMBER
+    | FLOAT_NUM
+    | STR
+    | CHAR_LITERAL
+    | TRUE
     | FALSE
-    | relation_expr
-    | '(' boolean_expr ')'
+    | '(' expr ')'
+    | function_call
     ;
 
-relation_expr: arithmetic_expr
-    | arithmetic_expr comparison arithmetic_expr
-    ;
-
-comparison: LT
-    | GT
-    | LE
-    | GE
-    | EQ
-    | NE
+function_call: ID '(' ')'
+    | ID '(' arg_list ')'
     ;
 
 declaration: datatype ID
-    | datatype ID ASSIGN non_decl_expr
+    | datatype ID ASSIGN expr
     ;
 
-assign_expr: ID ASSIGN non_decl_expr
-    ;
-
-arithmetic_expr: term
-    | arithmetic_expr ADD term
-    | arithmetic_expr SUBTRACT term
-    ;
-
-term: factor
-    | term MULTIPLY factor
-    | term DIVIDE factor
-    | term MODULO factor
-    ;
-
-factor: value
-    | '(' non_decl_expr ')'
-    ;
-
-value: NUMBER
-    | FLOAT_NUM
-    | STR
-    | ID
-    | CHAR_LITERAL
-    ;
-
-return_stmt: RETURN non_decl_expr SEMI
-    | /* empty */
+return_stmt: RETURN expr SEMI
+    | RETURN SEMI
     ;
 
 %%
