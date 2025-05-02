@@ -23,9 +23,10 @@ extern int line_num;
 %token <str> STR
 %token <str> CHAR_LITERAL
 
-%token IF ELSE WHILE FOR
+%token IF ELSE WHILE FOR DO
 %token SWITCH CASE DEFAULT BREAK CONTINUE
-%token INT FLOAT CHAR VOID
+%token INT FLOAT DOUBLE CHAR VOID CONST;
+
 %token TRUE FALSE
 
 %token PRINTFF SCANFF
@@ -81,6 +82,8 @@ parameter_list: parameter_declaration
 
 parameter_declaration: datatype ID
     | datatype MULTIPLY ID /* for pointers */
+    | CONST datatype ID
+    | CONST datatype MULTIPLY ID
     ;
 
 compound_stmt: '{' stmt_list '}'
@@ -89,6 +92,7 @@ compound_stmt: '{' stmt_list '}'
 datatype: INT
     | FLOAT
     | CHAR
+    | DOUBLE
     | VOID
     ;
 
@@ -100,6 +104,7 @@ stmt: compound_stmt /* for nested blocks */
     | if_stmt
     | for_stmt
     | while_stmt
+    | do_while_stmt
     | switch_stmt
     | expr_stmt
     | decl_stmt
@@ -131,6 +136,9 @@ for_update: /* empty */
     ;
 
 while_stmt: WHILE '(' expr ')' stmt
+    ;
+
+do_while_stmt: DO stmt WHILE '(' expr ')' SEMI
     ;
 
 expr_stmt: expr SEMI
@@ -226,6 +234,7 @@ multiplicative_expr: unary_expr
 
 unary_expr: postfix_expr
     | UNARY unary_expr
+    | SUBTRACT unary_expr
     | MULTIPLY unary_expr
     | '!' unary_expr
     | '&' unary_expr
@@ -252,7 +261,17 @@ function_call: ID '(' ')'
     ;
 
 declaration: datatype declarator_list  /* for declaraion of more than one var in one line */
-    ;
+             | CONST datatype const_declarator_list
+             ;
+
+const_declarator_list: const_declarator
+                     | const_declarator_list ',' const_declarator
+                     ;
+
+const_declarator: ID ASSIGN expr
+                | MULTIPLY ID ASSIGN expr  /* for const pointers */
+                ;
+
 
 declarator_list: declarator
     | declarator_list ',' declarator

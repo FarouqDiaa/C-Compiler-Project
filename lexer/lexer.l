@@ -18,7 +18,9 @@ space [ \t]
 
 "int"       { return INT; }
 "float"     { return FLOAT; }
+"double"     { return DOUBLE; }
 "char"      { return CHAR; }
+"const"     { return CONST;}
 "void"      { return VOID; }
 "if"        { return IF; }
 "else"      { return ELSE; }
@@ -30,6 +32,7 @@ space [ \t]
 "true"      { return TRUE; }
 "false"     { return FALSE; }
 
+"do"        {return DO; }
 "switch"    { return SWITCH; }
 "case"      { return CASE; }
 "default"   { return DEFAULT; }

@@ -4,6 +4,8 @@
 // Global variables
 int global_var = 100;
 float pi = 3.14159;
+const int x=66;
+double y = 2.3;
 
 // Function prototypes
 int factorial(int n);
@@ -93,6 +95,14 @@ int main() {
     for (int i = 0, j = 10; i < j; i++) {
         printf("i = %d, j = %d\n", i, j);
     }
+
+    do {
+        printf("Value of i: %d\n", i);
+        i++;
+        for(int i=0;i<5;i++){
+            printf("i = %d, j = %d\n", i, j);
+        }
+    } while (i <= 5);
     
     // Nested loops
     for (int i = 0; i < 3; i++) {
