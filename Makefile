@@ -7,5 +7,5 @@ all:
 	bison -d parser/parser.y -o parser/parser.tab.c
 	flex -o lexer/lex.yy.c lexer/lexer.l
 	gcc parser/parser.tab.c lexer/lex.yy.c src/*.c -Iinclude -o compiler
-	./compiler < examples/sample1.src
+	compiler < examples/sample1.src
 

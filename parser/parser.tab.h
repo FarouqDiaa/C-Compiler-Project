@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.8.2.  */
+/* A Bison parser, made by GNU Bison 3.7.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -63,33 +63,46 @@ extern int yydebug;
     ELSE = 264,                    /* ELSE  */
     WHILE = 265,                   /* WHILE  */
     FOR = 266,                     /* FOR  */
-    INT = 267,                     /* INT  */
-    FLOAT = 268,                   /* FLOAT  */
-    CHAR = 269,                    /* CHAR  */
-    VOID = 270,                    /* VOID  */
-    TRUE = 271,                    /* TRUE  */
-    FALSE = 272,                   /* FALSE  */
-    PRINTFF = 273,                 /* PRINTFF  */
-    SCANFF = 274,                  /* SCANFF  */
-    RETURN = 275,                  /* RETURN  */
-    INCLUDE = 276,                 /* INCLUDE  */
-    ASSIGN = 277,                  /* ASSIGN  */
-    EQ = 278,                      /* EQ  */
-    NE = 279,                      /* NE  */
-    LE = 280,                      /* LE  */
-    GE = 281,                      /* GE  */
-    GT = 282,                      /* GT  */
-    LT = 283,                      /* LT  */
-    AND = 284,                     /* AND  */
-    OR = 285,                      /* OR  */
-    ADD = 286,                     /* ADD  */
-    SUBTRACT = 287,                /* SUBTRACT  */
-    MULTIPLY = 288,                /* MULTIPLY  */
-    DIVIDE = 289,                  /* DIVIDE  */
-    MODULO = 290,                  /* MODULO  */
-    UNARY = 291,                   /* UNARY  */
-    SEMI = 292,                    /* SEMI  */
-    LOWER_THAN_ELSE = 293          /* LOWER_THAN_ELSE  */
+    SWITCH = 267,                  /* SWITCH  */
+    CASE = 268,                    /* CASE  */
+    DEFAULT = 269,                 /* DEFAULT  */
+    BREAK = 270,                   /* BREAK  */
+    CONTINUE = 271,                /* CONTINUE  */
+    INT = 272,                     /* INT  */
+    FLOAT = 273,                   /* FLOAT  */
+    CHAR = 274,                    /* CHAR  */
+    VOID = 275,                    /* VOID  */
+    TRUE = 276,                    /* TRUE  */
+    FALSE = 277,                   /* FALSE  */
+    PRINTFF = 278,                 /* PRINTFF  */
+    SCANFF = 279,                  /* SCANFF  */
+    RETURN = 280,                  /* RETURN  */
+    INCLUDE = 281,                 /* INCLUDE  */
+    ASSIGN = 282,                  /* ASSIGN  */
+    EQ = 283,                      /* EQ  */
+    NE = 284,                      /* NE  */
+    LE = 285,                      /* LE  */
+    GE = 286,                      /* GE  */
+    GT = 287,                      /* GT  */
+    LT = 288,                      /* LT  */
+    AND = 289,                     /* AND  */
+    OR = 290,                      /* OR  */
+    ADD = 291,                     /* ADD  */
+    SUBTRACT = 292,                /* SUBTRACT  */
+    MULTIPLY = 293,                /* MULTIPLY  */
+    DIVIDE = 294,                  /* DIVIDE  */
+    MODULO = 295,                  /* MODULO  */
+    UNARY = 296,                   /* UNARY  */
+    SEMI = 297,                    /* SEMI  */
+    NULL_TOKEN = 298,              /* NULL_TOKEN  */
+    LEFT_SQUARE_BRACE = 299,       /* LEFT_SQUARE_BRACE  */
+    RIGHT_SQUARE_BRACE = 300,      /* RIGHT_SQUARE_BRACE  */
+    ADD_ASSIGN = 301,              /* ADD_ASSIGN  */
+    SUB_ASSIGN = 302,              /* SUB_ASSIGN  */
+    MUL_ASSIGN = 303,              /* MUL_ASSIGN  */
+    DIV_ASSIGN = 304,              /* DIV_ASSIGN  */
+    MOD_ASSIGN = 305,              /* MOD_ASSIGN  */
+    LOWER_THAN_ELSE = 306          /* LOWER_THAN_ELSE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -104,7 +117,7 @@ union YYSTYPE
     float fnum;
     char* str;
 
-#line 108 "parser/parser.tab.h"
+#line 121 "parser/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -115,8 +128,6 @@ typedef union YYSTYPE YYSTYPE;
 
 extern YYSTYPE yylval;
 
-
 int yyparse (void);
-
 
 #endif /* !YY_YY_PARSER_PARSER_TAB_H_INCLUDED  */

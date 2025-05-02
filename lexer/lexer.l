@@ -30,6 +30,13 @@ space [ \t]
 "true"      { return TRUE; }
 "false"     { return FALSE; }
 
+"switch"    { return SWITCH; }
+"case"      { return CASE; }
+"default"   { return DEFAULT; }
+"break"     { return BREAK; }
+"continue"  { return CONTINUE; }
+"NULL"  { return NULL_TOKEN; }
+
 {alpha}({alnum}|_)*   { 
     yylval.str = strdup(yytext);
     return ID; 
@@ -64,6 +71,9 @@ space [ \t]
 "<"     { return LT; }
 "&&"    { return AND; }
 "||"    { return OR; }
+"!"     { return '!'; }
+":"     { return ':'; }
+"?"     { return '?'; }
 
 "="     { return ASSIGN; }
 "+"     { return ADD; }
@@ -81,6 +91,13 @@ space [ \t]
 ")"     { return ')'; }
 ","     { return ','; }
 "&"     { return '&'; }
+"["     { return '['; }
+"]"     { return ']'; }
+"+="    { return ADD_ASSIGN; }
+"-="    { return SUB_ASSIGN; }
+"*="    { return MUL_ASSIGN; }
+"/="    { return DIV_ASSIGN; }
+"%="    { return MOD_ASSIGN; }
 
 "//".*  { /* Single line comment, do nothing */ }
 

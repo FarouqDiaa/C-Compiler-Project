@@ -24,6 +24,7 @@ extern int line_num;
 %token <str> CHAR_LITERAL
 
 %token IF ELSE WHILE FOR
+%token SWITCH CASE DEFAULT BREAK CONTINUE
 %token INT FLOAT CHAR VOID
 %token TRUE FALSE
 
@@ -37,6 +38,13 @@ extern int line_num;
 %token MODULO
 %token UNARY
 %token SEMI
+
+%token NULL_TOKEN  // Add this token declaration
+
+%token LEFT_SQUARE_BRACE
+%token RIGHT_SQUARE_BRACE
+
+%token ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -52,7 +60,12 @@ translation_unit: external_declaration
 
 external_declaration: function_definition
     | declaration SEMI
+    | function_prototype SEMI
     | include_directive
+    ;
+
+function_prototype: datatype ID '(' parameter_list ')'
+    | datatype ID '(' ')'
     ;
 
 include_directive: INCLUDE
@@ -67,6 +80,7 @@ parameter_list: parameter_declaration
     ;
 
 parameter_declaration: datatype ID
+    | datatype MULTIPLY ID /* for pointers */
     ;
 
 compound_stmt: '{' stmt_list '}'
@@ -82,15 +96,18 @@ stmt_list: /* empty */
     | stmt_list stmt
     ;
 
-stmt: compound_stmt
+stmt: compound_stmt /* for nested blocks */
     | if_stmt
     | for_stmt
     | while_stmt
+    | switch_stmt
     | expr_stmt
     | decl_stmt
     | print_stmt
     | scan_stmt
     | return_stmt
+    | break_stmt
+    | continue_stmt
     ;
 
 if_stmt: IF '(' expr ')' stmt %prec LOWER_THAN_ELSE
@@ -119,6 +136,26 @@ while_stmt: WHILE '(' expr ')' stmt
 expr_stmt: expr SEMI
     ;
 
+switch_stmt: SWITCH '(' expr ')' '{' case_list '}'
+    ;
+
+case_list: /* empty */
+    | case_list case_stmt
+    | case_list default_stmt
+    ;
+
+case_stmt: CASE expr ':' stmt_list
+    ;
+
+default_stmt: DEFAULT ':' stmt_list
+    ;
+
+break_stmt: BREAK SEMI
+    ;
+
+continue_stmt: CONTINUE SEMI
+    ;
+
 decl_stmt: declaration SEMI
     ;
 
@@ -141,9 +178,19 @@ expr: assign_expr
 
 assign_expr: logical_expr
     | ID ASSIGN assign_expr
+    | MULTIPLY ID ASSIGN assign_expr /* for pointers support */
+    | ID ADD_ASSIGN assign_expr
+    | ID SUB_ASSIGN assign_expr
+    | ID MUL_ASSIGN assign_expr
+    | ID DIV_ASSIGN assign_expr
+    | ID MOD_ASSIGN assign_expr
     ;
 
-logical_expr: logical_or_expr
+conditional_expr: logical_or_expr
+    | logical_or_expr '?' expr ':' conditional_expr
+    ;
+
+logical_expr: conditional_expr
     ;
 
 logical_or_expr: logical_and_expr
@@ -179,6 +226,9 @@ multiplicative_expr: unary_expr
 
 unary_expr: postfix_expr
     | UNARY unary_expr
+    | MULTIPLY unary_expr
+    | '!' unary_expr
+    | '&' unary_expr
     ;
 
 postfix_expr: primary_expr
@@ -192,6 +242,7 @@ primary_expr: ID
     | CHAR_LITERAL
     | TRUE
     | FALSE
+    | NULL_TOKEN
     | '(' expr ')'
     | function_call
     ;
@@ -200,9 +251,18 @@ function_call: ID '(' ')'
     | ID '(' arg_list ')'
     ;
 
-declaration: datatype ID
-    | datatype ID ASSIGN expr
+declaration: datatype declarator_list  /* for declaraion of more than one var in one line */
     ;
+
+declarator_list: declarator
+    | declarator_list ',' declarator
+    ;
+
+declarator: ID
+    | MULTIPLY declarator  /* For pointers - allows int **x */
+    | ID ASSIGN expr
+    | ID '[' primary_expr ']'      
+    | ID '[' primary_expr ']' ASSIGN expr
 
 return_stmt: RETURN expr SEMI
     | RETURN SEMI
