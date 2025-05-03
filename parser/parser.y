@@ -25,7 +25,7 @@ extern int line_num;
 
 %token IF ELSE WHILE FOR DO
 %token SWITCH CASE DEFAULT BREAK CONTINUE
-%token INT FLOAT DOUBLE CHAR VOID CONST;
+%token INT FLOAT DOUBLE CHAR VOID CONST
 
 %token TRUE FALSE
 
@@ -33,17 +33,23 @@ extern int line_num;
 %token RETURN INCLUDE
 
 %token ASSIGN EQ NE LE GE GT LT
-%token AND OR
+%token AND OR NOT
 
 %token ADD SUBTRACT MULTIPLY DIVIDE
 %token MODULO
 %token UNARY
 %token SEMI
 
-%token NULL_TOKEN  // Add this token declaration
+%token NULL_TOKEN
 
-%token LEFT_SQUARE_BRACE
-%token RIGHT_SQUARE_BRACE
+%token LBRACE RBRACE
+%token LPAREN RPAREN
+%token LBRACKET RBRACKET
+%token COMMA
+
+%token COLON QUESTION
+
+%token BIT_AND
 
 %token ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
 
@@ -65,28 +71,28 @@ external_declaration: function_definition
     | include_directive
     ;
 
-function_prototype: datatype ID '(' parameter_list ')'
-    | datatype ID '(' ')'
+function_prototype: datatype ID LPAREN parameter_list RPAREN
+    | datatype ID LPAREN RPAREN
     ;
 
 include_directive: INCLUDE
     ;
 
-function_definition: datatype ID '(' parameter_list ')' compound_stmt
-    | datatype ID '(' ')' compound_stmt
+function_definition: datatype ID LPAREN parameter_list RPAREN compound_stmt
+    | datatype ID LPAREN RPAREN compound_stmt
     ;
 
 parameter_list: parameter_declaration
-    | parameter_list ',' parameter_declaration
+    | parameter_list COMMA parameter_declaration
     ;
 
 parameter_declaration: datatype ID
-    | datatype MULTIPLY ID /* for pointers */
+    | datatype MULTIPLY ID
     | CONST datatype ID
     | CONST datatype MULTIPLY ID
     ;
 
-compound_stmt: '{' stmt_list '}'
+compound_stmt: LBRACE stmt_list RBRACE
     ;
 
 datatype: INT
@@ -100,7 +106,7 @@ stmt_list: /* empty */
     | stmt_list stmt
     ;
 
-stmt: compound_stmt /* for nested blocks */
+stmt: compound_stmt
     | if_stmt
     | for_stmt
     | while_stmt
@@ -115,11 +121,11 @@ stmt: compound_stmt /* for nested blocks */
     | continue_stmt
     ;
 
-if_stmt: IF '(' expr ')' stmt %prec LOWER_THAN_ELSE
-    | IF '(' expr ')' stmt ELSE stmt
+if_stmt: IF LPAREN expr RPAREN stmt %prec LOWER_THAN_ELSE
+    | IF LPAREN expr RPAREN stmt ELSE stmt
     ;
 
-for_stmt: FOR '(' for_init SEMI for_cond SEMI for_update ')' stmt
+for_stmt: FOR LPAREN for_init SEMI for_cond SEMI for_update RPAREN stmt
     ;
 
 for_init: /* empty */
@@ -135,16 +141,16 @@ for_update: /* empty */
     | expr
     ;
 
-while_stmt: WHILE '(' expr ')' stmt
+while_stmt: WHILE LPAREN expr RPAREN stmt
     ;
 
-do_while_stmt: DO stmt WHILE '(' expr ')' SEMI
+do_while_stmt: DO stmt WHILE LPAREN expr RPAREN SEMI
     ;
 
 expr_stmt: expr SEMI
     ;
 
-switch_stmt: SWITCH '(' expr ')' '{' case_list '}'
+switch_stmt: SWITCH LPAREN expr RPAREN LBRACE case_list RBRACE
     ;
 
 case_list: /* empty */
@@ -152,10 +158,10 @@ case_list: /* empty */
     | case_list default_stmt
     ;
 
-case_stmt: CASE expr ':' stmt_list
+case_stmt: CASE expr COLON stmt_list
     ;
 
-default_stmt: DEFAULT ':' stmt_list
+default_stmt: DEFAULT COLON stmt_list
     ;
 
 break_stmt: BREAK SEMI
@@ -167,18 +173,18 @@ continue_stmt: CONTINUE SEMI
 decl_stmt: declaration SEMI
     ;
 
-print_stmt: PRINTFF '(' STR print_args ')' SEMI
+print_stmt: PRINTFF LPAREN STR print_args RPAREN SEMI
     ;
 
 print_args: /* empty */
-    | ',' arg_list
+    | COMMA arg_list
     ;
 
 arg_list: expr
-    | arg_list ',' expr
+    | arg_list COMMA expr
     ;
 
-scan_stmt: SCANFF '(' STR ',' '&' ID ')' SEMI
+scan_stmt: SCANFF LPAREN STR COMMA BIT_AND ID RPAREN SEMI
     ;
 
 expr: assign_expr
@@ -186,7 +192,7 @@ expr: assign_expr
 
 assign_expr: logical_expr
     | ID ASSIGN assign_expr
-    | MULTIPLY ID ASSIGN assign_expr /* for pointers support */
+    | MULTIPLY ID ASSIGN assign_expr
     | ID ADD_ASSIGN assign_expr
     | ID SUB_ASSIGN assign_expr
     | ID MUL_ASSIGN assign_expr
@@ -195,7 +201,7 @@ assign_expr: logical_expr
     ;
 
 conditional_expr: logical_or_expr
-    | logical_or_expr '?' expr ':' conditional_expr
+    | logical_or_expr QUESTION expr COLON conditional_expr
     ;
 
 logical_expr: conditional_expr
@@ -236,8 +242,8 @@ unary_expr: postfix_expr
     | UNARY unary_expr
     | SUBTRACT unary_expr
     | MULTIPLY unary_expr
-    | '!' unary_expr
-    | '&' unary_expr
+    | NOT unary_expr
+    | BIT_AND unary_expr
     ;
 
 postfix_expr: primary_expr
@@ -252,36 +258,36 @@ primary_expr: ID
     | TRUE
     | FALSE
     | NULL_TOKEN
-    | '(' expr ')'
+    | LPAREN expr RPAREN
     | function_call
     ;
 
-function_call: ID '(' ')'
-    | ID '(' arg_list ')'
+function_call: ID LPAREN RPAREN
+    | ID LPAREN arg_list RPAREN
     ;
 
-declaration: datatype declarator_list  /* for declaraion of more than one var in one line */
-             | CONST datatype const_declarator_list
-             ;
+declaration: datatype declarator_list
+    | CONST datatype const_declarator_list
+    ;
 
 const_declarator_list: const_declarator
-                     | const_declarator_list ',' const_declarator
-                     ;
+    | const_declarator_list COMMA const_declarator
+    ;
 
 const_declarator: ID ASSIGN expr
-                | MULTIPLY ID ASSIGN expr  /* for const pointers */
-                ;
-
+    | MULTIPLY ID ASSIGN expr
+    ;
 
 declarator_list: declarator
-    | declarator_list ',' declarator
+    | declarator_list COMMA declarator
     ;
 
 declarator: ID
-    | MULTIPLY declarator  /* For pointers - allows int **x */
+    | MULTIPLY declarator
     | ID ASSIGN expr
-    | ID '[' primary_expr ']'      
-    | ID '[' primary_expr ']' ASSIGN expr
+    | ID LBRACKET primary_expr RBRACKET
+    | ID LBRACKET primary_expr RBRACKET ASSIGN expr
+    ;
 
 return_stmt: RETURN expr SEMI
     | RETURN SEMI

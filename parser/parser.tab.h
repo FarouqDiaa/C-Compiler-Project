@@ -90,22 +90,31 @@ extern int yydebug;
     LT = 291,                      /* LT  */
     AND = 292,                     /* AND  */
     OR = 293,                      /* OR  */
-    ADD = 294,                     /* ADD  */
-    SUBTRACT = 295,                /* SUBTRACT  */
-    MULTIPLY = 296,                /* MULTIPLY  */
-    DIVIDE = 297,                  /* DIVIDE  */
-    MODULO = 298,                  /* MODULO  */
-    UNARY = 299,                   /* UNARY  */
-    SEMI = 300,                    /* SEMI  */
-    NULL_TOKEN = 301,              /* NULL_TOKEN  */
-    LEFT_SQUARE_BRACE = 302,       /* LEFT_SQUARE_BRACE  */
-    RIGHT_SQUARE_BRACE = 303,      /* RIGHT_SQUARE_BRACE  */
-    ADD_ASSIGN = 304,              /* ADD_ASSIGN  */
-    SUB_ASSIGN = 305,              /* SUB_ASSIGN  */
-    MUL_ASSIGN = 306,              /* MUL_ASSIGN  */
-    DIV_ASSIGN = 307,              /* DIV_ASSIGN  */
-    MOD_ASSIGN = 308,              /* MOD_ASSIGN  */
-    LOWER_THAN_ELSE = 309          /* LOWER_THAN_ELSE  */
+    NOT = 294,                     /* NOT  */
+    ADD = 295,                     /* ADD  */
+    SUBTRACT = 296,                /* SUBTRACT  */
+    MULTIPLY = 297,                /* MULTIPLY  */
+    DIVIDE = 298,                  /* DIVIDE  */
+    MODULO = 299,                  /* MODULO  */
+    UNARY = 300,                   /* UNARY  */
+    SEMI = 301,                    /* SEMI  */
+    NULL_TOKEN = 302,              /* NULL_TOKEN  */
+    LBRACE = 303,                  /* LBRACE  */
+    RBRACE = 304,                  /* RBRACE  */
+    LPAREN = 305,                  /* LPAREN  */
+    RPAREN = 306,                  /* RPAREN  */
+    LBRACKET = 307,                /* LBRACKET  */
+    RBRACKET = 308,                /* RBRACKET  */
+    COMMA = 309,                   /* COMMA  */
+    COLON = 310,                   /* COLON  */
+    QUESTION = 311,                /* QUESTION  */
+    BIT_AND = 312,                 /* BIT_AND  */
+    ADD_ASSIGN = 313,              /* ADD_ASSIGN  */
+    SUB_ASSIGN = 314,              /* SUB_ASSIGN  */
+    MUL_ASSIGN = 315,              /* MUL_ASSIGN  */
+    DIV_ASSIGN = 316,              /* DIV_ASSIGN  */
+    MOD_ASSIGN = 317,              /* MOD_ASSIGN  */
+    LOWER_THAN_ELSE = 318          /* LOWER_THAN_ELSE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -120,7 +129,7 @@ union YYSTYPE
     float fnum;
     char* str;
 
-#line 124 "parser/parser.tab.h"
+#line 133 "parser/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
