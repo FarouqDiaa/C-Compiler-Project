@@ -1,8 +1,9 @@
+int a;
+float b;
+double d;
+char c;
+
 int main() {
-    int a=5;
-    int q=2;
-    int z=a;
-    q=z;
-    z=q;
+    a='c'; // this is error need handled 
     return 0;
 }

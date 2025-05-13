@@ -6,6 +6,7 @@
 #include "../include/symbol_table.h"
 #include "../intermediate_code/quadruple.h"
 #include "../intermediate_code/utils.h"
+#include "../include/semantic_analyzer.h" 
 
 
 void yyerror(const char *s);
@@ -303,14 +304,21 @@ expr: assign_expr
 assign_expr: logical_expr
     | ID ASSIGN assign_expr
     {   
-        //printf($1);
-        // Mark variable as used and initialized
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym) {
+            // Type compatibility check
+            const char* left_type = sym->type;
+            const char* right_type = NULL;
+            Symbol* right_sym = lookup_symbol(current_scope, $3);
+            if (right_sym) right_type = right_sym->type;
+            else right_type = current_type; // fallback
+
+            if (!check_type_compatibility(left_type, right_type)) {
+                fprintf(stderr, "Error: Type mismatch in assignment to '%s' at line %d ('%s' = '%s')\n",
+                        $1, line_num, left_type, right_type);
+            }
             mark_symbol_used(current_scope, $1);
             mark_symbol_initialized(current_scope, $1);
-            
-            // Check if trying to modify a constant
             if (sym->is_const) {
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
@@ -325,7 +333,7 @@ assign_expr: logical_expr
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
-    }
+    };
     | MULTIPLY ID ASSIGN assign_expr
     {
         // Handle pointer dereference assignment
@@ -801,10 +809,19 @@ const_declarator:
         if (sym) {
             fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", $1, line_num);
         } else {
-             printf("const_declarator: ID = %s, EXPR = %s\n", $1, $3);
+            // Type compatibility check for const initialization
+            const char* left_type = current_type;
+            const char* right_type = NULL;
+            Symbol* right_sym = lookup_symbol(current_scope, $3);
+            if (right_sym) right_type = right_sym->type;
+            else right_type = current_type; // fallback
+
+            if (!check_type_compatibility(left_type, right_type)) {
+                fprintf(stderr, "Error: Type mismatch in const initialization of '%s' at line %d ('%s' = '%s')\n",
+                        $1, line_num, left_type, right_type);
+            }
             insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, true, line_num);
             mark_symbol_initialized(current_scope, $1);
-             // Generate quadruple: ID = expr
             Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
             addQuadruple(quad);
         }
@@ -870,9 +887,19 @@ declarator:
         if (sym && sym->scope_depth == current_scope->depth) {
             fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", $1, line_num);
         } else {
+            // Type compatibility check for initialization
+            const char* left_type = current_type;
+            const char* right_type = NULL;
+            Symbol* right_sym = lookup_symbol(current_scope, $3);
+            if (right_sym) right_type = right_sym->type;
+            else right_type = current_type; // fallback
+
+            if (!check_type_compatibility(left_type, right_type)) {
+                fprintf(stderr, "Error: Type mismatch in initialization of '%s' at line %d ('%s' = '%s')\n",
+                        $1, line_num, left_type, right_type);
+            }
             insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, is_const_declaration, line_num);
             mark_symbol_initialized(current_scope, $1);
-              // Generate quadruple: ID = expr
             Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
             addQuadruple(quad);
         }
