@@ -223,12 +223,11 @@ parameter_declaration:
 compound_stmt: 
     LBRACE 
     {
-        // Create a new scope for compound statement
         current_scope = enter_scope(current_scope, SCOPE_LOCAL);
+        current_scope->return_count = 0; // Reset return count for new scope
     }
     stmt_list RBRACE
     {
-        // Exit compound statement scope
         current_scope = exit_scope(current_scope);
     }
     ;
@@ -999,15 +998,16 @@ declarator:
         }
     }
     ;
-// ...existing code...
 return_stmt: RETURN expr SEMI
     {
-        // Get the function symbol to check its return type
+        // Track return count in current scope
+        current_scope->return_count++;
+        if (current_scope->return_count > 1) {
+            fprintf(stderr, "Warning: Multiple return statements in the same scope at line %d\n", line_num);
+        }
         has_return_stmt = 1;
         Symbol* func_sym = lookup_symbol(current_scope, current_function);
         const char* func_return_type = func_sym ? func_sym->type : NULL;
-
-        // Infer the type of the returned expression
         const char* return_expr_type = NULL;
         Symbol* expr_sym = lookup_symbol(current_scope, $2);
         if (expr_sym) {
@@ -1021,8 +1021,6 @@ return_stmt: RETURN expr SEMI
         } else {
             return_expr_type = current_type; // fallback
         }
-
-        // Check type compatibility
         if (func_return_type && !check_type_compatibility(func_return_type, return_expr_type)) {
             fprintf(stderr, "Error: Return type mismatch in function '%s' at line %d ('%s' expected, got '%s')\n",
                 current_function, line_num, func_return_type, return_expr_type);
@@ -1030,8 +1028,11 @@ return_stmt: RETURN expr SEMI
     }
     | RETURN SEMI
     {
+        current_scope->return_count++;
+        if (current_scope->return_count > 1) {
+            fprintf(stderr, "Warning: Multiple return statements in the same scope at line %d\n", line_num);
+        }
         has_return_stmt = 1;
-        // For void functions, this is fine; for others, warn
         Symbol* func_sym = lookup_symbol(current_scope, current_function);
         if (func_sym && strcmp(func_sym->type, "void") != 0) {
             fprintf(stderr, "Warning: Non-void function '%s' should return a value at line %d\n",
@@ -1039,7 +1040,6 @@ return_stmt: RETURN expr SEMI
         }
     }
     ;
-// ...existing code...
 
 %%
 

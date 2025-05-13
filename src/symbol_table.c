@@ -14,6 +14,7 @@ Scope* create_scope(Scope* parent, ScopeType type) {
     }
 
     // Initialize scope attributes
+    new_scope->return_count = 0;
     new_scope->depth = parent ? parent->depth + 1 : 0;
     new_scope->type = type;
     new_scope->parent = parent;

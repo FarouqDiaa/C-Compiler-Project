@@ -1,11 +1,15 @@
-bool x;
 char k='a';
 int func(bool z){
     k++;
+    if(k==2){
+        return 5;
+        return 7;
+    }
     return 3;
+    
 }
 
 int main() {
-   int x=func('c');
+   char x='c';
    return 0;
 }

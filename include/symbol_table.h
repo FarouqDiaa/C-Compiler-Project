@@ -38,6 +38,7 @@ typedef struct Scope {
     Symbol* symbols;         // Symbols in this scope
     int symbol_count;        // Number of symbols in this scope
     int max_symbols;         // Maximum capacity of symbols
+    int return_count;        // Number of return statements in this scope
 } Scope;
 
 // Initialize the symbol table system
