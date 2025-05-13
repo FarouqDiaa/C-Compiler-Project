@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.8.2.  */
+/* A Bison parser, made by GNU Bison 3.7.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -98,23 +98,25 @@ extern int yydebug;
     MODULO = 299,                  /* MODULO  */
     UNARY = 300,                   /* UNARY  */
     SEMI = 301,                    /* SEMI  */
-    NULL_TOKEN = 302,              /* NULL_TOKEN  */
-    LBRACE = 303,                  /* LBRACE  */
-    RBRACE = 304,                  /* RBRACE  */
-    LPAREN = 305,                  /* LPAREN  */
-    RPAREN = 306,                  /* RPAREN  */
-    LBRACKET = 307,                /* LBRACKET  */
-    RBRACKET = 308,                /* RBRACKET  */
-    COMMA = 309,                   /* COMMA  */
-    COLON = 310,                   /* COLON  */
-    QUESTION = 311,                /* QUESTION  */
-    BIT_AND = 312,                 /* BIT_AND  */
-    ADD_ASSIGN = 313,              /* ADD_ASSIGN  */
-    SUB_ASSIGN = 314,              /* SUB_ASSIGN  */
-    MUL_ASSIGN = 315,              /* MUL_ASSIGN  */
-    DIV_ASSIGN = 316,              /* DIV_ASSIGN  */
-    MOD_ASSIGN = 317,              /* MOD_ASSIGN  */
-    LOWER_THAN_ELSE = 318          /* LOWER_THAN_ELSE  */
+    UNARY_INC = 302,               /* UNARY_INC  */
+    UNARY_DEC = 303,               /* UNARY_DEC  */
+    NULL_TOKEN = 304,              /* NULL_TOKEN  */
+    LBRACE = 305,                  /* LBRACE  */
+    RBRACE = 306,                  /* RBRACE  */
+    LPAREN = 307,                  /* LPAREN  */
+    RPAREN = 308,                  /* RPAREN  */
+    LBRACKET = 309,                /* LBRACKET  */
+    RBRACKET = 310,                /* RBRACKET  */
+    COMMA = 311,                   /* COMMA  */
+    COLON = 312,                   /* COLON  */
+    QUESTION = 313,                /* QUESTION  */
+    BIT_AND = 314,                 /* BIT_AND  */
+    ADD_ASSIGN = 315,              /* ADD_ASSIGN  */
+    SUB_ASSIGN = 316,              /* SUB_ASSIGN  */
+    MUL_ASSIGN = 317,              /* MUL_ASSIGN  */
+    DIV_ASSIGN = 318,              /* DIV_ASSIGN  */
+    MOD_ASSIGN = 319,              /* MOD_ASSIGN  */
+    LOWER_THAN_ELSE = 320          /* LOWER_THAN_ELSE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -123,13 +125,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 20 "parser/parser.y"
+#line 23 "parser/parser.y"
 
     int num;
     float fnum;
     char* str;
 
-#line 133 "parser/parser.tab.h"
+#line 135 "parser/parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -140,8 +142,6 @@ typedef union YYSTYPE YYSTYPE;
 
 extern YYSTYPE yylval;
 
-
 int yyparse (void);
-
 
 #endif /* !YY_YY_PARSER_PARSER_TAB_H_INCLUDED  */

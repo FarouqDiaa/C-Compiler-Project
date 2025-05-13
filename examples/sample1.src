@@ -1,20 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-// Function prototypes
-int factorial(int y)
-{
-   int y;
-}
-
-
-
-// Main function with complex control structures
 int main() {
-
-int x;
-{
-    int x;
-}
+    int a = 5;
     return 0;
 }

@@ -4,6 +4,9 @@
 #include <string.h>
 #include <ctype.h>
 #include "../include/symbol_table.h"
+#include "../intermediate_code/quadruple.h"
+#include "../intermediate_code/utils.h"
+
 
 void yyerror(const char *s);
 int yylex();
@@ -29,6 +32,10 @@ char current_function[50] = "";
 %token <str> STR
 %token <str> CHAR_LITERAL
 
+%type <str> expr assign_expr conditional_expr logical_expr logical_or_expr
+%type <str> logical_and_expr equality_expr relational_expr additive_expr
+%type <str> multiplicative_expr unary_expr postfix_expr primary_expr function_call
+
 %token IF ELSE WHILE FOR DO
 %token SWITCH CASE DEFAULT BREAK CONTINUE
 %token INT FLOAT DOUBLE CHAR VOID CONST
@@ -45,6 +52,7 @@ char current_function[50] = "";
 %token MODULO
 %token UNARY
 %token SEMI
+%token UNARY_INC UNARY_DEC
 
 %token NULL_TOKEN
 
@@ -271,7 +279,8 @@ expr: assign_expr
 
 assign_expr: logical_expr
     | ID ASSIGN assign_expr
-    {
+    {   
+        //printf($1);
         // Mark variable as used and initialized
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym) {
@@ -283,6 +292,13 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, temp);
+            addQuadruple(quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -300,6 +316,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $2, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $4, NULL, temp);
+            addQuadruple(quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($2));
+            addQuadruple(assign);
+            $$ = strdup($2);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $2, line_num);
         }
@@ -317,6 +341,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* add_quad = createQuadruple(QuadOp_ADD, strdup($1), strdup($3), temp);
+            addQuadruple(add_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -334,6 +366,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* sub_quad = createQuadruple(QuadOp_SUB, strdup($1), strdup($3), temp);
+            addQuadruple(sub_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -351,6 +391,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* mul_quad = createQuadruple(QuadOp_MUL, strdup($1), strdup($3), temp);
+            addQuadruple(mul_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -368,6 +416,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* div_quad = createQuadruple(QuadOp_DIV, strdup($1), strdup($3), temp);
+            addQuadruple(div_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -385,64 +441,157 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* mod_quad = createQuadruple(QuadOp_MOD, strdup($1), strdup($3), temp);
+            addQuadruple(mod_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
     }
     ;
 
-conditional_expr: logical_or_expr
+ conditional_expr: logical_or_expr
     | logical_or_expr QUESTION expr COLON conditional_expr
     ;
 
-logical_expr: conditional_expr
-    ;
+ logical_expr: conditional_expr
 
-logical_or_expr: logical_and_expr
+ logical_or_expr: logical_and_expr
     | logical_or_expr OR logical_and_expr
     ;
-
-logical_and_expr: equality_expr
+ 
+ logical_and_expr: equality_expr
     | logical_and_expr AND equality_expr
     ;
-
-equality_expr: relational_expr
+ 
+ equality_expr: relational_expr
     | equality_expr EQ relational_expr
     | equality_expr NE relational_expr
     ;
-
-relational_expr: additive_expr
+ 
+ relational_expr: additive_expr
     | relational_expr LT additive_expr
     | relational_expr GT additive_expr
     | relational_expr LE additive_expr
     | relational_expr GE additive_expr
     ;
 
+
 additive_expr: multiplicative_expr
     | additive_expr ADD multiplicative_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* add_quad = createQuadruple(QuadOp_ADD, strdup($1), strdup($3), temp);
+        addQuadruple(add_quad);
+
+        $$ = temp;
+
+        printf("additive_expr: ADD\n");
+    }
     | additive_expr SUBTRACT multiplicative_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* add_quad = createQuadruple(QuadOp_SUB, strdup($1), strdup($3), temp);
+        addQuadruple(add_quad);
+
+        $$ = temp;
+
+        printf("additive_expr: ADD\n");
+    }
     ;
 
-multiplicative_expr: unary_expr
-    | multiplicative_expr MULTIPLY unary_expr
-    | multiplicative_expr DIVIDE unary_expr
-    | multiplicative_expr MODULO unary_expr
+ multiplicative_expr: unary_expr
+    {
+        $$ = $1;
+    }
+     | multiplicative_expr MULTIPLY unary_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* mul_quad = createQuadruple(QuadOp_MUL, strdup($1), strdup($3), temp);
+        addQuadruple(mul_quad);
+
+        $$ = temp;
+
+        printf("multiplicative_expr: MUL\n");
+    }
+     | multiplicative_expr DIVIDE unary_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* div_quad = createQuadruple(QuadOp_DIV, strdup($1), strdup($3), temp);
+        addQuadruple(div_quad);
+
+        $$ = temp;
+
+        printf("multiplicative_expr: DIV\n");
+    }
+     | multiplicative_expr MODULO unary_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* mod_quad = createQuadruple(QuadOp_MOD, strdup($1), strdup($3), temp);
+        addQuadruple(mod_quad);
+
+        $$ = temp;
+
+        printf("multiplicative_expr: MOD\n");
+    }
     ;
 
 unary_expr: postfix_expr
+    { $$ = $1; }
     | UNARY unary_expr
+    { $$ = $2; } // Propagate the value
     | SUBTRACT unary_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* neg_quad = createQuadruple(QuadOp_NEG, strdup($2), NULL, temp);
+        addQuadruple(neg_quad);
+        $$ = temp;
+    }
     | MULTIPLY unary_expr
+    { $$ = $2; } // Propagate the value
     | NOT unary_expr
+    { $$ = $2; } // Propagate the value
     | BIT_AND unary_expr
+    { $$ = $2; } // Propagate the value
     ;
 
 postfix_expr: primary_expr
-    | postfix_expr UNARY
+    {
+        $$ = $1;
+    }
+
+    | postfix_expr UNARY_INC
+    {
+        char* temp = nextTemp();
+        Quadruple* assign_temp = createQuadruple(QuadOp_ASSIGN, strdup($1), NULL, temp);
+        addQuadruple(assign_temp);
+
+        Quadruple* increment = createQuadruple(QuadOp_ADD, strdup($1), strdup("1"), strdup($1));
+        addQuadruple(increment);
+
+        $$ = temp;
+    }
+    | postfix_expr UNARY_DEC
+    {
+        char* temp = nextTemp();
+        Quadruple* assign_temp = createQuadruple(QuadOp_ASSIGN, strdup($1), NULL, temp);
+        addQuadruple(assign_temp);
+
+        Quadruple* decrement = createQuadruple(QuadOp_SUB, strdup($1), strdup("1"), strdup($1));
+        addQuadruple(decrement);
+
+        $$ = temp;
+    }
     ;
 
 primary_expr: ID
-    {
+    { 
+        printf("primary_expr: ID = %s\n", $1);
         // Mark the symbol as used when referenced
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym) {
@@ -453,19 +602,52 @@ primary_expr: ID
                 fprintf(stderr, "Warning: Variable '%s' used before initialization at line %d\n", 
                         $1, line_num);
             }
+            $$ = strdup($1); // Assign the identifier's name to $$
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
+            $$ = strdup("0"); // Or some default value, like "0"
         }
     }
     | NUMBER
+    {
+        char* num_str = (char*)malloc(20);
+        sprintf(num_str, "%d", $1);
+        $$ = num_str;
+    }
     | FLOAT_NUM
+    {
+        char* float_str = (char*)malloc(50);
+        sprintf(float_str, "%f", $1);
+        $$ = float_str;
+    }
     | STR
+    {
+        $$ = strdup($1);
+    }
     | CHAR_LITERAL
+    {
+        $$ = strdup($1);
+    }
     | TRUE
+    {
+        $$ = strdup("1");
+    }
     | FALSE
+    {
+        $$ = strdup("0");
+    }
     | NULL_TOKEN
+    {
+        $$ = strdup("0");
+    }
     | LPAREN expr RPAREN
+    {
+        $$ = $2;
+    }
     | function_call
+    {
+        $$ = strdup($1);
+    }
     ;
 
 function_call: ID LPAREN RPAREN
@@ -480,36 +662,57 @@ const_declarator_list: const_declarator
     | const_declarator_list COMMA const_declarator
     ;
 
-const_declarator: 
+const_declarator:
     ID ASSIGN expr
     {
+        printf("const_declarator: ID = %s, EXPR = %s\n", $1, $3);
         // Add const variable to symbol table and mark as initialized
         insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, true, line_num);
         mark_symbol_initialized(current_scope, $1);
+        // Generate quadruple: ID = expr
+        Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
+        addQuadruple(quad);
     }
     | MULTIPLY ID ASSIGN expr
+    {
+        // Handle pointer dereference assignment
+        // Generate quadruple: *ID = expr
+        // ... (Implementation for pointer dereference assignment) ...
+    }
     ;
 
 declarator_list: declarator
     | declarator_list COMMA declarator
     ;
 
-declarator: 
+declarator:
     ID
     {
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym) {
-           
-            fprintf(stderr, "error: Variable '%s' is initialized before \n", 
+            fprintf(stderr, "error: Variable '%s' is initialized before \n",
                         $1);
-            
         } else {
             // Add variable to symbol table
-        insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, is_const_declaration, line_num);
+            insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, is_const_declaration, line_num);
         }
     }
     | MULTIPLY declarator
+    {
+        // ... (Implementation for pointer declaration) ...
+    }
     | ID ASSIGN expr
+    {
+        // Add variable to symbol table (if not already there)
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (!sym) {
+            insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, is_const_declaration, line_num);
+        }
+
+        // Generate quadruple: ID = expr
+        Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
+        addQuadruple(quad);
+    }
     | ID LBRACKET primary_expr RBRACKET
     | ID LBRACKET primary_expr RBRACKET ASSIGN expr
     ;
@@ -530,5 +733,6 @@ int main() {
     if (result == 0) {
         printf("Parsing completed successfully.\n");
     }
+    printQuadruples();
     return result;
 }
