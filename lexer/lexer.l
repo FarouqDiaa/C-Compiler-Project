@@ -84,8 +84,8 @@ space [ \t]
 "*"     { return MULTIPLY; }
 "%"     { return MODULO; }
 "/"     { return DIVIDE; }
-"++"    { return UNARY; }
-"--"    { return UNARY; }
+"++"    { return UNARY_INC; }
+"--"    { return UNARY_DEC; }
 ";"     { return SEMI; }
 
 "{"     { return LBRACE; }
