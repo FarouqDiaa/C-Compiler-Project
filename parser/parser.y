@@ -292,8 +292,13 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
-            //createQuadruple("=", $3, NULL, $1);
-            $$ = $1;
+            char* temp = nextTemp();
+            Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, temp);
+            addQuadruple(quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -311,6 +316,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $2, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $4, NULL, temp);
+            addQuadruple(quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($2));
+            addQuadruple(assign);
+            $$ = strdup($2);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $2, line_num);
         }
@@ -328,6 +341,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* add_quad = createQuadruple(QuadOp_ADD, strdup($1), strdup($3), temp);
+            addQuadruple(add_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -345,6 +366,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* sub_quad = createQuadruple(QuadOp_SUB, strdup($1), strdup($3), temp);
+            addQuadruple(sub_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -362,6 +391,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* mul_quad = createQuadruple(QuadOp_MUL, strdup($1), strdup($3), temp);
+            addQuadruple(mul_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -379,6 +416,14 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* div_quad = createQuadruple(QuadOp_DIV, strdup($1), strdup($3), temp);
+            addQuadruple(div_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
@@ -396,48 +441,104 @@ assign_expr: logical_expr
                 fprintf(stderr, "Error: Cannot modify const variable '%s' at line %d\n", 
                         $1, line_num);
             }
+            char* temp = nextTemp();
+            Quadruple* mod_quad = createQuadruple(QuadOp_MOD, strdup($1), strdup($3), temp);
+            addQuadruple(mod_quad);
+
+            Quadruple* assign = createQuadruple(QuadOp_ASSIGN, temp, NULL, strdup($1));
+            addQuadruple(assign);
+            $$ = strdup($1);
+
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
     }
     ;
 
-conditional_expr: logical_or_expr
+ conditional_expr: logical_or_expr
     | logical_or_expr QUESTION expr COLON conditional_expr
     ;
 
-logical_expr: conditional_expr
-    ;
+ logical_expr: conditional_expr
 
-logical_or_expr: logical_and_expr
+ logical_or_expr: logical_and_expr
     | logical_or_expr OR logical_and_expr
     ;
-
-logical_and_expr: equality_expr
+ 
+ logical_and_expr: equality_expr
     | logical_and_expr AND equality_expr
     ;
-
-equality_expr: relational_expr
+ 
+ equality_expr: relational_expr
     | equality_expr EQ relational_expr
     | equality_expr NE relational_expr
     ;
-
-relational_expr: additive_expr
+ 
+ relational_expr: additive_expr
     | relational_expr LT additive_expr
     | relational_expr GT additive_expr
     | relational_expr LE additive_expr
     | relational_expr GE additive_expr
     ;
 
+
 additive_expr: multiplicative_expr
     | additive_expr ADD multiplicative_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* add_quad = createQuadruple(QuadOp_ADD, strdup($1), strdup($3), temp);
+        addQuadruple(add_quad);
+
+        $$ = temp;
+
+        printf("additive_expr: ADD\n");
+    }
     | additive_expr SUBTRACT multiplicative_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* add_quad = createQuadruple(QuadOp_SUB, strdup($1), strdup($3), temp);
+        addQuadruple(add_quad);
+
+        $$ = temp;
+
+        printf("additive_expr: ADD\n");
+    }
     ;
 
-multiplicative_expr: unary_expr
-    | multiplicative_expr MULTIPLY unary_expr
-    | multiplicative_expr DIVIDE unary_expr
-    | multiplicative_expr MODULO unary_expr
+ multiplicative_expr: unary_expr
+    {
+        $$ = $1;
+    }
+     | multiplicative_expr MULTIPLY unary_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* mul_quad = createQuadruple(QuadOp_MUL, strdup($1), strdup($3), temp);
+        addQuadruple(mul_quad);
+
+        $$ = temp;
+
+        printf("multiplicative_expr: MUL\n");
+    }
+     | multiplicative_expr DIVIDE unary_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* div_quad = createQuadruple(QuadOp_DIV, strdup($1), strdup($3), temp);
+        addQuadruple(div_quad);
+
+        $$ = temp;
+
+        printf("multiplicative_expr: DIV\n");
+    }
+     | multiplicative_expr MODULO unary_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* mod_quad = createQuadruple(QuadOp_MOD, strdup($1), strdup($3), temp);
+        addQuadruple(mod_quad);
+
+        $$ = temp;
+
+        printf("multiplicative_expr: MOD\n");
+    }
     ;
 
 unary_expr: postfix_expr
@@ -445,7 +546,12 @@ unary_expr: postfix_expr
     | UNARY unary_expr
     { $$ = $2; } // Propagate the value
     | SUBTRACT unary_expr
-    { $$ = $2; } // Propagate the value
+    {
+        char* temp = nextTemp();
+        Quadruple* neg_quad = createQuadruple(QuadOp_NEG, strdup($2), NULL, temp);
+        addQuadruple(neg_quad);
+        $$ = temp;
+    }
     | MULTIPLY unary_expr
     { $$ = $2; } // Propagate the value
     | NOT unary_expr
@@ -458,6 +564,7 @@ postfix_expr: primary_expr
     {
         $$ = $1;
     }
+
     | postfix_expr UNARY_INC
     {
         char* temp = nextTemp();

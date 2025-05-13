@@ -23,6 +23,9 @@ typedef enum QuadOp {
     QuadOp_DIV_ASSIGN,
     QuadOp_MOD_ASSIGN,
 
+    // Unary operations
+    QuadOp_NEG,
+
     // Relational operations
     QuadOp_LT,
     QuadOp_GT,
