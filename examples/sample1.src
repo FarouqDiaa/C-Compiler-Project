@@ -1,18 +1,5 @@
-int a;
-float b;
-double d;
-char c;
+bool x;
 
 int main() {
-    a = 5;        // int to int (compatible)
-    b = 3.14;     // float to float (compatible)
-    d = b;        // float to double (compatible, widening)
-    b = a;        // int to float (compatible, widening)
-    a = b;        // float to int (should warn about precision loss)
-    c = a;        // int to char (should warn about precision loss)
-    d = c;        // char to double (compatible, widening)
-    a = d;        // double to int (should warn about precision loss)
-    c = 65;       // int to char (compatible, but may warn)
-    b = d;        // double to float (should warn about precision loss)
-    return 0;
+   x=4.1;
 }

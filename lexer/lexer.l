@@ -20,6 +20,7 @@ space [ \t]
 "float"     { return FLOAT; }
 "double"    { return DOUBLE; }
 "char"      { return CHAR; }
+"bool"      { return BOOL; }
 "const"     { return CONST; }
 "void"      { return VOID; }
 "if"        { return IF; }

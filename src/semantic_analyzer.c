@@ -19,6 +19,7 @@ typedef enum
     TYPE_DOUBLE,
     TYPE_CHAR,
     TYPE_VOID,
+    TYPE_BOOL,
     TYPE_UNKNOWN
 } BasicType;
 
@@ -35,6 +36,8 @@ BasicType get_basic_type(const char *type_str)
         return TYPE_CHAR;
     if (strstr(type_str, "void") != NULL)
         return TYPE_VOID;
+    if (strstr(type_str, "bool") != NULL)    // Add this line
+        return TYPE_BOOL;
     return TYPE_UNKNOWN;
 }
 
@@ -48,6 +51,12 @@ bool check_type_compatibility(const char *left_type, const char *right_type)
     if (left_basic == right_basic)
         return true;
 
+    // Allow assignment between bool and int (both directions)
+    if ((left_basic == TYPE_BOOL && right_basic == TYPE_INT) ||
+        (left_basic == TYPE_INT && right_basic == TYPE_BOOL)) {
+        return true;
+    }
+
     // Numeric types have some compatibility
     if ((left_basic == TYPE_INT || left_basic == TYPE_FLOAT || left_basic == TYPE_DOUBLE) &&
         (right_basic == TYPE_INT || right_basic == TYPE_FLOAT || right_basic == TYPE_DOUBLE))
@@ -58,20 +67,21 @@ bool check_type_compatibility(const char *left_type, const char *right_type)
         if (left_basic == TYPE_FLOAT && right_basic == TYPE_INT)
             return true;
 
+
         // Otherwise, warn about potential precision loss
         fprintf(stderr, "Warning at line %d: Possible precision loss in assignment from %s to %s\n",
-                line_num, right_type, left_type);
-        return true;
-    }
+            line_num, right_type, left_type);
+    return true;
+}
 
-    // One or both types are unknown
-    if (left_basic == TYPE_UNKNOWN || right_basic == TYPE_UNKNOWN)
-    {
-        fprintf(stderr, "Error at line %d: Unknown type in assignment\n", line_num);
-        return false;
-    }
-
+// One or both types are unknown
+if (left_basic == TYPE_UNKNOWN || right_basic == TYPE_UNKNOWN)
+{
+    fprintf(stderr, "Error at line %d: Unknown type in assignment\n", line_num);
     return false;
+}
+
+return false;
 }
 
 // ---------------- Constant Checking ----------------

@@ -47,6 +47,7 @@ int is_float(const char* s) {
 
 %token <num> NUMBER
 %token <fnum> FLOAT_NUM
+%token BOOL
 %token <str> ID
 %token <str> STR
 %token <str> CHAR_LITERAL
@@ -220,6 +221,7 @@ datatype: INT   { strcpy(current_type, "int"); }
     | CHAR      { strcpy(current_type, "char"); }
     | DOUBLE    { strcpy(current_type, "double"); }
     | VOID      { strcpy(current_type, "void"); }
+    | BOOL      { strcpy(current_type, "bool"); }
     ;
 
 stmt_list: /* empty */
