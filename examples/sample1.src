@@ -1,5 +1,11 @@
 bool x;
+char k='a';
+int func(bool z){
+    k++;
+    return 3;
+}
 
 int main() {
-   x=4.1;
+   int x=func('c');
+   return 0;
 }

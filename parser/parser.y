@@ -20,6 +20,7 @@ Scope* current_scope = NULL;
 bool is_const_declaration = false;
 char current_type[50];
 char current_function[50] = "";
+int has_return_stmt = 0;
 int is_number(const char* s) {
     if (!s) return 0;
     for (int i = 0; s[i]; ++i)
@@ -128,7 +129,23 @@ function_prototype:
 
 function_definition:
     function_header LPAREN parameter_list RPAREN compound_stmt
+    {
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
+            fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
+                current_function);
+        }
+        has_return_stmt = 0; // Reset for next function
+    }
     | function_header LPAREN RPAREN compound_stmt
+    {
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
+            fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
+                current_function);
+        }
+        has_return_stmt = 0; // Reset for next function
+    }
     ;
 
 function_header:
@@ -982,9 +999,47 @@ declarator:
         }
     }
     ;
+// ...existing code...
 return_stmt: RETURN expr SEMI
+    {
+        // Get the function symbol to check its return type
+        has_return_stmt = 1;
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        const char* func_return_type = func_sym ? func_sym->type : NULL;
+
+        // Infer the type of the returned expression
+        const char* return_expr_type = NULL;
+        Symbol* expr_sym = lookup_symbol(current_scope, $2);
+        if (expr_sym) {
+            return_expr_type = expr_sym->type;
+        } else if ($2 && strlen($2) == 3 && $2[0] == '\'' && $2[2] == '\'') {
+            return_expr_type = "char";
+        } else if (is_number($2)) {
+            return_expr_type = "int";
+        } else if (is_float($2)) {
+            return_expr_type = "float";
+        } else {
+            return_expr_type = current_type; // fallback
+        }
+
+        // Check type compatibility
+        if (func_return_type && !check_type_compatibility(func_return_type, return_expr_type)) {
+            fprintf(stderr, "Error: Return type mismatch in function '%s' at line %d ('%s' expected, got '%s')\n",
+                current_function, line_num, func_return_type, return_expr_type);
+        }
+    }
     | RETURN SEMI
+    {
+        has_return_stmt = 1;
+        // For void functions, this is fine; for others, warn
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym && strcmp(func_sym->type, "void") != 0) {
+            fprintf(stderr, "Warning: Non-void function '%s' should return a value at line %d\n",
+                current_function, line_num);
+        }
+    }
     ;
+// ...existing code...
 
 %%
 
