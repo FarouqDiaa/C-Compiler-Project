@@ -39,6 +39,16 @@ typedef enum QuadOp {
     QuadOp_OR,
     QuadOp_NOT,
 
+    // Memory operations
+    QuadOp_ALLOC,
+    QuadOp_FREE,
+    QuadOp_ADDR,  // Get address of
+    QuadOp_DEREF, // Dereference
+
+    // Array operations
+    QuadOp_ARRAY_LOAD,
+    QuadOp_ARRAY_STORE,
+
     // Control flow operations
     QuadOp_JMP,    // Unconditional jump
     QuadOp_JEQ,    // Jump if equal
