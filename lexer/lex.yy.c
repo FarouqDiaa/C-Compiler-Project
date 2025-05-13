@@ -564,7 +564,7 @@ int line_num = 1;
  */
 #include <unistd.h>
 #endif
-
+    
 #ifndef YY_EXTRA_TYPE
 #define YY_EXTRA_TYPE void *
 #endif
@@ -1076,12 +1076,12 @@ YY_RULE_SETUP
 case 46:
 YY_RULE_SETUP
 #line 87 "lexer/lexer.l"
-{ return UNARY; }
+{ return UNARY_INC; }
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
 #line 88 "lexer/lexer.l"
-{ return UNARY; }
+{ return UNARY_DEC; }
 	YY_BREAK
 case 48:
 YY_RULE_SETUP

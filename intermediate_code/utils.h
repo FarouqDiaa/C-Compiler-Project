@@ -2,7 +2,7 @@
 #define UTILS_H
 
 // Function prototypes
-int nextTemp();
-int nextLabel();
+char* nextTemp();    // Changed from int to char*
+char* nextLabel();   // Changed from int to char*
 
 #endif
