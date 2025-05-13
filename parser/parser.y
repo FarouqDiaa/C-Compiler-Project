@@ -9,6 +9,7 @@
 #include "../include/semantic_analyzer.h" 
 
 
+
 void yyerror(const char *s);
 int yylex();
 int yywrap();
@@ -19,6 +20,23 @@ Scope* current_scope = NULL;
 bool is_const_declaration = false;
 char current_type[50];
 char current_function[50] = "";
+int is_number(const char* s) {
+    if (!s) return 0;
+    for (int i = 0; s[i]; ++i)
+        if (!isdigit(s[i])) return 0;
+    return 1;
+}
+int is_float(const char* s) {
+    if (!s) return 0;
+    int dot = 0;
+    for (int i = 0; s[i]; ++i) {
+        if (s[i] == '.') {
+            if (dot) return 0;
+            dot = 1;
+        } else if (!isdigit(s[i])) return 0;
+    }
+    return dot;
+}
 %}
 
 %union {
@@ -83,6 +101,8 @@ program:
         print_symbol_table(current_scope);
     }
     ;
+
+
 
 translation_unit:
       external_declaration
@@ -310,8 +330,20 @@ assign_expr: logical_expr
             const char* left_type = sym->type;
             const char* right_type = NULL;
             Symbol* right_sym = lookup_symbol(current_scope, $3);
-            if (right_sym) right_type = right_sym->type;
-            else right_type = current_type; // fallback
+
+            // Detect if $3 is a literal (number, char, etc.)
+            if (right_sym) {
+                right_type = right_sym->type;
+            } else if ($3 && strlen($3) == 3 && $3[0] == '\'' && $3[2] == '\'') {
+                // It's a char literal like 'c'
+                right_type = "char";
+            } else if (is_number($3)) {
+                right_type = "int";
+            } else if (is_float($3)) {
+                right_type = "float";
+            } else {
+                right_type = current_type; // fallback, but not ideal
+            }
 
             if (!check_type_compatibility(left_type, right_type)) {
                 fprintf(stderr, "Error: Type mismatch in assignment to '%s' at line %d ('%s' = '%s')\n",
@@ -333,7 +365,7 @@ assign_expr: logical_expr
         } else {
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", $1, line_num);
         }
-    };
+    }
     | MULTIPLY ID ASSIGN assign_expr
     {
         // Handle pointer dereference assignment
@@ -813,11 +845,20 @@ const_declarator:
             const char* left_type = current_type;
             const char* right_type = NULL;
             Symbol* right_sym = lookup_symbol(current_scope, $3);
-            if (right_sym) right_type = right_sym->type;
-            else right_type = current_type; // fallback
+                        if (right_sym) {
+                right_type = right_sym->type;
+            } else if ($3 && strlen($3) == 3 && $3[0] == '\'' && $3[2] == '\'') {
+                right_type = "char";
+            } else if (is_number($3)) {
+                right_type = "int";
+            } else if (is_float($3)) {
+                right_type = "float";
+            } else {
+                right_type = current_type; // fallback, but not ideal
+            }
 
             if (!check_type_compatibility(left_type, right_type)) {
-                fprintf(stderr, "Error: Type mismatch in const initialization of '%s' at line %d ('%s' = '%s')\n",
+                fprintf(stderr, "Error: Type mismatch in assignment to '%s' at line %d ('%s' = '%s')\n",
                         $1, line_num, left_type, right_type);
             }
             insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, true, line_num);
@@ -891,11 +932,20 @@ declarator:
             const char* left_type = current_type;
             const char* right_type = NULL;
             Symbol* right_sym = lookup_symbol(current_scope, $3);
-            if (right_sym) right_type = right_sym->type;
-            else right_type = current_type; // fallback
+                        if (right_sym) {
+                right_type = right_sym->type;
+            } else if ($3 && strlen($3) == 3 && $3[0] == '\'' && $3[2] == '\'') {
+                right_type = "char";
+            } else if (is_number($3)) {
+                right_type = "int";
+            } else if (is_float($3)) {
+                right_type = "float";
+            } else {
+                right_type = current_type; // fallback, but not ideal
+            }
 
             if (!check_type_compatibility(left_type, right_type)) {
-                fprintf(stderr, "Error: Type mismatch in initialization of '%s' at line %d ('%s' = '%s')\n",
+                fprintf(stderr, "Error: Type mismatch in assignment to '%s' at line %d ('%s' = '%s')\n",
                         $1, line_num, left_type, right_type);
             }
             insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, is_const_declaration, line_num);
