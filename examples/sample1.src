@@ -1,15 +1,17 @@
-char k='a';
-int func(bool z){
+int k=2;
+int func(char z,int y){
     k++;
-    if(k==2){
-        return 5;
-        return 7;
-    }
-    return 3;
-    
+    return k;
+}
+
+int func2(int g){
+    g++;
+    return g;
 }
 
 int main() {
    char x='c';
+    int q=func('x',1);
+    int b=func2(2);
    return 0;
 }

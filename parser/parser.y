@@ -20,7 +20,11 @@ Scope* current_scope = NULL;
 bool is_const_declaration = false;
 char current_type[50];
 char current_function[50] = "";
+ParamInfo func_param_list[20];
+int func_param_count = 0;
 int has_return_stmt = 0;
+char* call_arg_types[20];
+int call_arg_count = 0;
 int is_number(const char* s) {
     if (!s) return 0;
     for (int i = 0; s[i]; ++i)
@@ -131,28 +135,33 @@ function_definition:
     function_header LPAREN parameter_list RPAREN compound_stmt
     {
         Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym) {
+            set_function_params(func_sym, func_param_list, func_param_count);
+        }
         if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
             fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
                 current_function);
         }
-        has_return_stmt = 0; // Reset for next function
+        has_return_stmt = 0;
     }
     | function_header LPAREN RPAREN compound_stmt
     {
         Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym) {
+            set_function_params(func_sym, NULL, 0);
+        }
         if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
             fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
                 current_function);
         }
-        has_return_stmt = 0; // Reset for next function
+        has_return_stmt = 0;
     }
-    ;
-
+;
 function_header:
     datatype ID
     {
         strncpy(current_function, $2, sizeof(current_function) - 1);
-        // Check for duplicate function
+        func_param_count = 0;
         Symbol* sym = lookup_symbol(current_scope, $2);
         if (sym) {
             fprintf(stderr, "Error: Function '%s' already declared at line %d\n", $2, line_num);
@@ -160,7 +169,7 @@ function_header:
             insert_symbol_in_scope(current_scope, $2, current_type, SYM_FUNCTION, false, line_num);
         }
     }
-    ;
+;
 
 
 
@@ -172,13 +181,13 @@ parameter_list:
 parameter_declaration: 
     datatype ID
     {
-        // Add parameter to symbol table
         Symbol* sym = lookup_symbol(current_scope, $2);
         if (sym) {
             fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", $2, line_num);
         } else {
             insert_symbol_in_scope(current_scope, $2, current_type, SYM_PARAMETER, false, line_num);
             mark_symbol_initialized(current_scope, $2);
+            strcpy(func_param_list[func_param_count++].type, current_type);
         }
     }
     | datatype MULTIPLY ID
@@ -191,6 +200,7 @@ parameter_declaration:
         } else {
             insert_symbol_in_scope(current_scope, $3, pointer_type, SYM_PARAMETER, false, line_num);
             mark_symbol_initialized(current_scope, $3);
+            strcpy(func_param_list[func_param_count++].type, pointer_type);
         }
     }
     | CONST datatype ID
@@ -203,6 +213,7 @@ parameter_declaration:
         } else {
             insert_symbol_in_scope(current_scope, $3, const_type, SYM_PARAMETER, true, line_num);
             mark_symbol_initialized(current_scope, $3);
+            strcpy(func_param_list[func_param_count++].type, const_type);
         }
     }
     | CONST datatype MULTIPLY ID
@@ -215,9 +226,10 @@ parameter_declaration:
         } else {
             insert_symbol_in_scope(current_scope, $4, const_pointer_type, SYM_PARAMETER, true, line_num);
             mark_symbol_initialized(current_scope, $4);
+            strcpy(func_param_list[func_param_count++].type, const_pointer_type);
         }
     }
-    ;
+;
 
 
 compound_stmt: 
@@ -330,8 +342,39 @@ print_args: /* empty */
     ;
 
 arg_list: expr
+    {
+        call_arg_count = 0;
+        // Determine the type of $1
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (sym) {
+            call_arg_types[call_arg_count++] = sym->type;
+        } else if ($1 && strlen($1) == 3 && $1[0] == '\'' && $1[2] == '\'') {
+            call_arg_types[call_arg_count++] = "char";
+        } else if (is_number($1)) {
+            call_arg_types[call_arg_count++] = "int";
+        } else if (is_float($1)) {
+            call_arg_types[call_arg_count++] = "float";
+        } else {
+            call_arg_types[call_arg_count++] = current_type; // fallback
+        }
+    }
     | arg_list COMMA expr
-    ;
+    {
+        // Determine the type of $3
+        Symbol* sym = lookup_symbol(current_scope, $3);
+        if (sym) {
+            call_arg_types[call_arg_count++] = sym->type;
+        } else if ($3 && strlen($3) == 3 && $3[0] == '\'' && $3[2] == '\'') {
+            call_arg_types[call_arg_count++] = "char";
+        } else if (is_number($3)) {
+            call_arg_types[call_arg_count++] = "int";
+        } else if (is_float($3)) {
+            call_arg_types[call_arg_count++] = "float";
+        } else {
+            call_arg_types[call_arg_count++] = current_type; // fallback
+        }
+    }
+;
 
 scan_stmt: SCANFF LPAREN STR COMMA BIT_AND ID RPAREN SEMI
     ;
@@ -828,6 +871,9 @@ function_call: ID LPAREN RPAREN
         } else if (sym->kind != SYM_FUNCTION) {
             fprintf(stderr, "Error: '%s' is not a function at line %d\n", $1, line_num);
         } else {
+            if (!check_function_call(sym, NULL, 0, line_num)) {
+                // Error already printed
+            }
             mark_symbol_used(current_scope, $1);
         }
     }
@@ -839,10 +885,13 @@ function_call: ID LPAREN RPAREN
         } else if (sym->kind != SYM_FUNCTION) {
             fprintf(stderr, "Error: '%s' is not a function at line %d\n", $1, line_num);
         } else {
+            if (!check_function_call(sym, call_arg_types, call_arg_count, line_num)) {
+                // Error already printed
+            }
             mark_symbol_used(current_scope, $1);
         }
     }
-    ;
+;
 
 declaration: datatype declarator_list
     | CONST datatype const_declarator_list

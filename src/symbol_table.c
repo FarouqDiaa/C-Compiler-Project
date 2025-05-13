@@ -36,6 +36,45 @@ void destroy_scope(Scope* scope) {
     free(scope);
 }
 
+
+void set_function_params(Symbol* func_sym, ParamInfo* params, int param_count) {
+    if (!func_sym || func_sym->kind != SYM_FUNCTION) return;
+    func_sym->params = malloc(sizeof(ParamInfo) * param_count);
+    for (int i = 0; i < param_count; ++i) {
+        strcpy(func_sym->params[i].type, params[i].type);
+    }
+    func_sym->param_count = param_count;
+}
+
+int get_function_param_count(Symbol* func_sym) {
+    if (!func_sym || func_sym->kind != SYM_FUNCTION) return 0;
+    return func_sym->param_count;
+}
+
+const char* get_function_param_type(Symbol* func_sym, int index) {
+    if (!func_sym || func_sym->kind != SYM_FUNCTION) return NULL;
+    if (index < 0 || index >= func_sym->param_count) return NULL;
+    return func_sym->params[index].type;
+}
+
+bool check_function_call(Symbol* func_sym, char** arg_types, int arg_count, int call_line) {
+    if (!func_sym || func_sym->kind != SYM_FUNCTION) return false;
+    if (func_sym->param_count != arg_count) {
+        fprintf(stderr, "Error: Function '%s' called with %d arguments but declared with %d at line %d\n",
+            func_sym->name, arg_count, func_sym->param_count, call_line);
+        return false;
+    }
+    for (int i = 0; i < arg_count; ++i) {
+        if (strcmp(func_sym->params[i].type, arg_types[i]) != 0) {
+            fprintf(stderr, "Error: Argument %d of function '%s' expects '%s' but got '%s' at line %d\n",
+                i+1, func_sym->name, func_sym->params[i].type, arg_types[i], call_line);
+            return false;
+        }
+    }
+    return true;
+}
+
+
 // Insert a symbol into the given scope
 void insert_symbol_in_scope(Scope* scope, const char* name, const char* type, 
                              SymbolKind kind, bool is_const, int line_number) {
