@@ -113,9 +113,16 @@ function_header:
     datatype ID
     {
         strncpy(current_function, $2, sizeof(current_function) - 1);
-        insert_symbol_in_scope(current_scope, $2, current_type, SYM_FUNCTION, false, line_num);
+        // Check for duplicate function
+        Symbol* sym = lookup_symbol(current_scope, $2);
+        if (sym) {
+            fprintf(stderr, "Error: Function '%s' already declared at line %d\n", $2, line_num);
+        } else {
+            insert_symbol_in_scope(current_scope, $2, current_type, SYM_FUNCTION, false, line_num);
+        }
     }
     ;
+
 
 
 parameter_list:
@@ -127,33 +134,49 @@ parameter_declaration:
     datatype ID
     {
         // Add parameter to symbol table
-        insert_symbol_in_scope(current_scope, $2, current_type, SYM_PARAMETER, false, line_num);
-        // Parameters are considered initialized
-        mark_symbol_initialized(current_scope, $2);
+        Symbol* sym = lookup_symbol(current_scope, $2);
+        if (sym) {
+            fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", $2, line_num);
+        } else {
+            insert_symbol_in_scope(current_scope, $2, current_type, SYM_PARAMETER, false, line_num);
+            mark_symbol_initialized(current_scope, $2);
+        }
     }
     | datatype MULTIPLY ID
     {
-        // Add pointer parameter
         char pointer_type[50];
         snprintf(pointer_type, sizeof(pointer_type), "%s*", current_type);
-        insert_symbol_in_scope(current_scope, $3, pointer_type, SYM_PARAMETER, false, line_num);
-        mark_symbol_initialized(current_scope, $3);
+        Symbol* sym = lookup_symbol(current_scope, $3);
+        if (sym) {
+            fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", $3, line_num);
+        } else {
+            insert_symbol_in_scope(current_scope, $3, pointer_type, SYM_PARAMETER, false, line_num);
+            mark_symbol_initialized(current_scope, $3);
+        }
     }
     | CONST datatype ID
     {
-        // Add const parameter
         char const_type[50];
         snprintf(const_type, sizeof(const_type), "const %s", current_type);
-        insert_symbol_in_scope(current_scope, $3, const_type, SYM_PARAMETER, true, line_num);
-        mark_symbol_initialized(current_scope, $3);
+        Symbol* sym = lookup_symbol(current_scope, $3);
+        if (sym) {
+            fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", $3, line_num);
+        } else {
+            insert_symbol_in_scope(current_scope, $3, const_type, SYM_PARAMETER, true, line_num);
+            mark_symbol_initialized(current_scope, $3);
+        }
     }
     | CONST datatype MULTIPLY ID
     {
-        // Add const pointer parameter
         char const_pointer_type[50];
         snprintf(const_pointer_type, sizeof(const_pointer_type), "const %s*", current_type);
-        insert_symbol_in_scope(current_scope, $4, const_pointer_type, SYM_PARAMETER, true, line_num);
-        mark_symbol_initialized(current_scope, $4);
+        Symbol* sym = lookup_symbol(current_scope, $4);
+        if (sym) {
+            fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", $4, line_num);
+        } else {
+            insert_symbol_in_scope(current_scope, $4, const_pointer_type, SYM_PARAMETER, true, line_num);
+            mark_symbol_initialized(current_scope, $4);
+        }
     }
     ;
 
@@ -171,11 +194,11 @@ compound_stmt:
     }
     ;
 
-datatype: INT
-    | FLOAT
-    | CHAR
-    | DOUBLE
-    | VOID
+datatype: INT   { strcpy(current_type, "int"); }
+    | FLOAT     { strcpy(current_type, "float"); }
+    | CHAR      { strcpy(current_type, "char"); }
+    | DOUBLE    { strcpy(current_type, "double"); }
+    | VOID      { strcpy(current_type, "void"); }
     ;
 
 stmt_list: /* empty */
@@ -455,30 +478,119 @@ assign_expr: logical_expr
     }
     ;
 
- conditional_expr: logical_or_expr
+conditional_expr: logical_or_expr
     | logical_or_expr QUESTION expr COLON conditional_expr
+    {
+        char* temp = nextTemp();
+        char* label_true = nextLabel();
+        char* label_false = nextLabel();
+        char* label_end = nextLabel();
+
+        // Generate code for the conditional expression
+        Quadruple* jmp_false = createQuadruple(QuadOp_JEQ, strdup($1), "0", label_false);
+        addQuadruple(jmp_false);
+
+        Quadruple* assign_true = createQuadruple(QuadOp_ASSIGN, strdup($3), NULL, temp);
+        addQuadruple(assign_true);
+        Quadruple* jmp_end = createQuadruple(QuadOp_JMP, label_end, NULL, NULL);
+        addQuadruple(jmp_end);
+
+        Quadruple* label_false_quad = createQuadruple(QuadOp_LABEL, label_false, NULL, NULL);
+        addQuadruple(label_false_quad);
+
+        Quadruple* assign_false = createQuadruple(QuadOp_ASSIGN, strdup($5), NULL, temp);
+        addQuadruple(assign_false);
+
+        Quadruple* label_end_quad = createQuadruple(QuadOp_LABEL, label_end, NULL, NULL);
+        addQuadruple(label_end_quad);
+
+        $$ = temp;
+    }
     ;
 
  logical_expr: conditional_expr
+    {
+        $$ = $1;
+    }
 
  logical_or_expr: logical_and_expr
+    {
+        $$ = $1;
+    }
     | logical_or_expr OR logical_and_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* or_quad = createQuadruple(QuadOp_OR, strdup($1), strdup($3), temp);
+        addQuadruple(or_quad);
+        $$ = temp;
+    }
     ;
  
  logical_and_expr: equality_expr
+    {
+        $$ = $1;
+    }
     | logical_and_expr AND equality_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* and_quad = createQuadruple(QuadOp_AND, strdup($1), strdup($3), temp);
+        addQuadruple(and_quad);
+        $$ = temp;
+    }
     ;
  
  equality_expr: relational_expr
+    {
+        $$ = $1;
+    }
     | equality_expr EQ relational_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* eq_quad = createQuadruple(QuadOp_EQ, strdup($1), strdup($3), temp);
+        addQuadruple(eq_quad);
+        $$ = temp;
+    }
     | equality_expr NE relational_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* ne_quad = createQuadruple(QuadOp_NE, strdup($1), strdup($3), temp);
+        addQuadruple(ne_quad);
+        $$ = temp;
+    }
     ;
  
  relational_expr: additive_expr
+    {
+        $$ = $1;
+    }
     | relational_expr LT additive_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* lt_quad = createQuadruple(QuadOp_LT, strdup($1), strdup($3), temp);
+        addQuadruple(lt_quad);
+        $$ = temp;
+    }
     | relational_expr GT additive_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* gt_quad = createQuadruple(QuadOp_GT, strdup($1), strdup($3), temp);
+        addQuadruple(gt_quad);
+        $$ = temp;
+    }
     | relational_expr LE additive_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* le_quad = createQuadruple(QuadOp_LTE, strdup($1), strdup($3), temp);
+        addQuadruple(le_quad);
+        $$ = temp;
+    }
     | relational_expr GE additive_expr
+    {
+        char* temp = nextTemp();
+        Quadruple* ge_quad = createQuadruple(QuadOp_GTE, strdup($1), strdup($3), temp);
+        addQuadruple(ge_quad);
+        $$ = temp;
+    }
     ;
 
 
@@ -651,7 +763,27 @@ primary_expr: ID
     ;
 
 function_call: ID LPAREN RPAREN
+    {
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (!sym) {
+            fprintf(stderr, "Error: Undeclared function '%s' at line %d\n", $1, line_num);
+        } else if (sym->kind != SYM_FUNCTION) {
+            fprintf(stderr, "Error: '%s' is not a function at line %d\n", $1, line_num);
+        } else {
+            mark_symbol_used(current_scope, $1);
+        }
+    }
     | ID LPAREN arg_list RPAREN
+    {
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (!sym) {
+            fprintf(stderr, "Error: Undeclared function '%s' at line %d\n", $1, line_num);
+        } else if (sym->kind != SYM_FUNCTION) {
+            fprintf(stderr, "Error: '%s' is not a function at line %d\n", $1, line_num);
+        } else {
+            mark_symbol_used(current_scope, $1);
+        }
+    }
     ;
 
 declaration: datatype declarator_list
@@ -665,19 +797,30 @@ const_declarator_list: const_declarator
 const_declarator:
     ID ASSIGN expr
     {
-        printf("const_declarator: ID = %s, EXPR = %s\n", $1, $3);
-        // Add const variable to symbol table and mark as initialized
-        insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, true, line_num);
-        mark_symbol_initialized(current_scope, $1);
-        // Generate quadruple: ID = expr
-        Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
-        addQuadruple(quad);
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (sym) {
+            fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", $1, line_num);
+        } else {
+             printf("const_declarator: ID = %s, EXPR = %s\n", $1, $3);
+            insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, true, line_num);
+            mark_symbol_initialized(current_scope, $1);
+             // Generate quadruple: ID = expr
+            Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
+            addQuadruple(quad);
+        }
     }
     | MULTIPLY ID ASSIGN expr
     {
-        // Handle pointer dereference assignment
-        // Generate quadruple: *ID = expr
-        // ... (Implementation for pointer dereference assignment) ...
+        // Pointer const variable (optional: handle as needed)
+        Symbol* sym = lookup_symbol(current_scope, $2);
+        if (sym) {
+            fprintf(stderr, "Error: Const pointer variable '%s' already declared at line %d\n", $2, line_num);
+        } else {
+            char pointer_type[50];
+            snprintf(pointer_type, sizeof(pointer_type), "%s*", current_type);
+            insert_symbol_in_scope(current_scope, $2, pointer_type, SYM_VARIABLE, true, line_num);
+            mark_symbol_initialized(current_scope, $2);
+        }
     }
     ;
 
@@ -688,11 +831,31 @@ declarator_list: declarator
 declarator:
     ID
     {
+        // First check if already declared in current scope
+        bool is_redeclaration = false;
         Symbol* sym = lookup_symbol(current_scope, $1);
+        
         if (sym) {
-            fprintf(stderr, "error: Variable '%s' is initialized before \n",
-                        $1);
-        } else {
+            // If found in current scope, it's a redeclaration
+            if (sym->scope_depth == current_scope->depth) {
+                fprintf(stderr, "Error: Redeclaration of '%s' at line %d (previously declared at line %d)\n", 
+                        $1, line_num, sym->line_number);
+                is_redeclaration = true;
+            } 
+            // If found in IMMEDIATE parent and it's a parameter, it's shadowing a parameter
+            else if (sym->kind == SYM_PARAMETER && 
+                     current_scope->parent && 
+                     sym->scope_depth == current_scope->parent->depth &&
+                     // Make sure we're still in the same function
+                     strcmp(current_function, "") != 0 &&
+                     strstr(sym->name, current_function) != NULL) {
+                fprintf(stderr, "Error: Local variable '%s' at line %d shadows parameter declared at line %d\n", 
+                        $1, line_num, sym->line_number);
+                is_redeclaration = true;
+            }
+        }
+        
+        if (!is_redeclaration) {
             // Add variable to symbol table
             insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, is_const_declaration, line_num);
         }
@@ -703,20 +866,43 @@ declarator:
     }
     | ID ASSIGN expr
     {
-        // Add variable to symbol table (if not already there)
         Symbol* sym = lookup_symbol(current_scope, $1);
-        if (!sym) {
+        if (sym && sym->scope_depth == current_scope->depth) {
+            fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", $1, line_num);
+        } else {
             insert_symbol_in_scope(current_scope, $1, current_type, SYM_VARIABLE, is_const_declaration, line_num);
+            mark_symbol_initialized(current_scope, $1);
+              // Generate quadruple: ID = expr
+            Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
+            addQuadruple(quad);
         }
-
-        // Generate quadruple: ID = expr
-        Quadruple* quad = createQuadruple(QuadOp_ASSIGN, $3, NULL, strdup($1));
-        addQuadruple(quad);
     }
     | ID LBRACKET primary_expr RBRACKET
+    {
+        // Array declaration (optional: handle array size/type)
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (sym) {
+            fprintf(stderr, "Error: Array '%s' already declared at line %d\n", $1, line_num);
+        } else {
+            char array_type[50];
+            snprintf(array_type, sizeof(array_type), "%s[]", current_type);
+            insert_symbol_in_scope(current_scope, $1, array_type, SYM_VARIABLE, is_const_declaration, line_num);
+        }
+    }
     | ID LBRACKET primary_expr RBRACKET ASSIGN expr
+    {
+        // Array declaration with initialization (optional: handle as needed)
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (sym) {
+            fprintf(stderr, "Error: Array '%s' already declared at line %d\n", $1, line_num);
+        } else {
+            char array_type[50];
+            snprintf(array_type, sizeof(array_type), "%s[]", current_type);
+            insert_symbol_in_scope(current_scope, $1, array_type, SYM_VARIABLE, is_const_declaration, line_num);
+            mark_symbol_initialized(current_scope, $1);
+        }
+    }
     ;
-
 return_stmt: RETURN expr SEMI
     | RETURN SEMI
     ;
