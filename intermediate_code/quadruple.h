@@ -23,6 +23,9 @@ typedef enum QuadOp {
     QuadOp_DIV_ASSIGN,
     QuadOp_MOD_ASSIGN,
 
+    // Unary operations
+    QuadOp_NEG,
+
     // Relational operations
     QuadOp_LT,
     QuadOp_GT,
@@ -35,6 +38,16 @@ typedef enum QuadOp {
     QuadOp_AND,
     QuadOp_OR,
     QuadOp_NOT,
+
+    // Memory operations
+    QuadOp_ALLOC,
+    QuadOp_FREE,
+    QuadOp_ADDR,  // Get address of
+    QuadOp_DEREF, // Dereference
+
+    // Array operations
+    QuadOp_ARRAY_LOAD,
+    QuadOp_ARRAY_STORE,
 
     // Control flow operations
     QuadOp_JMP,    // Unconditional jump

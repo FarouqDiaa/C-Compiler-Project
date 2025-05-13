@@ -68,6 +68,10 @@ void insert_symbol_in_scope(Scope* scope, const char* name, const char* type,
     new_symbol->is_initialized = false;
     new_symbol->is_used = false;
     new_symbol->scope_depth = scope->depth;
+    // Initialize value if needed
+// Initialize value if needed
+
+
 }
 
 // Lookup a symbol in the current and parent scopes

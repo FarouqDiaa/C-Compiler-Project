@@ -30,7 +30,7 @@ Quadruple* createQuadruple(QuadOp op, char* arg1, char* arg2, char* result) {
     }
 
     quad->result = (result != NULL) ? strdup(result) : NULL;
-    if (result == NULL && quad->result == NULL) {
+    if (result != NULL && quad->result == NULL) {
         fprintf(stderr, "Error: Memory allocation failed for result string\n");
         exit(EXIT_FAILURE);
     }
@@ -72,6 +72,7 @@ const char* quadOpToString(QuadOp op) {
         case QuadOp_OR: return "OR";
         case QuadOp_NOT: return "NOT";
         case QuadOp_JMP: return "JMP";
+        case QuadOp_NEG: return "NEG";
         case QuadOp_JEQ: return "JEQ";
         case QuadOp_JNE: return "JNE";
         case QuadOp_JLT: return "JLT";

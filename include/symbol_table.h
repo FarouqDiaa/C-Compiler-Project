@@ -21,6 +21,7 @@ typedef enum {
 typedef struct Symbol {
     char name[50];           // Symbol name
     char type[50];           // Full type (can include const, pointer, etc.)
+    char *value;             // Value of the symbol
     SymbolKind kind;         // Kind of symbol
     int line_number;         // Line of declaration
     bool is_const;           // Const-ness

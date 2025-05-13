@@ -2,7 +2,7 @@
 #define SEMANTIC_ANALYZER_H
 
 #include <stdbool.h>
-#include "include/symbol_table.h"
+#include "../include/symbol_table.h"
 
 // Type compatibility definitions
 typedef enum

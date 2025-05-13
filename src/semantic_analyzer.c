@@ -3,10 +3,13 @@
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
-#include "include/symbol_table.h"
+#include <limits.h>
+#include "../include/symbol_table.h"
 
 extern Scope *current_scope;
 extern int line_num;
+
+int parse_expression(); // Forward declaration
 
 // Type compatibility definitions
 typedef enum
