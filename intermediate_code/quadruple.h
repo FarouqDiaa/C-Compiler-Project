@@ -86,5 +86,7 @@ void printQuadruples();
 const char* quadOpToString(QuadOp op); // New function prototype
 void writeQuadruplesToFile(const char* filename);
 void rearrangeQuadrupleLoops(int loopDepth);
+void rearrangeQuadrupleCalls();
+void removeUncalledFunctions();
 
 #endif

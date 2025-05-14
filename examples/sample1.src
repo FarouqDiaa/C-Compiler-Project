@@ -1,11 +1,20 @@
 // Test complex type errors and compatibility issues
 int func(int y)
 {
-  int y;
+  int y = 100;
+  return 10;
+}
+int func2(int y)
+{
+  int g = 100;
+  return 10;
 }
 int main() {
-    int y;
+    int a = 10;
     int z = func(10);
-    bool z;
+    if (10 < 0) {
+      int a = y - 4 *2;
+      
+    }
     return 0;
 }

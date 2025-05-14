@@ -379,7 +379,6 @@ if_stmt:
         addQuadruple(createQuadruple(QuadOp_JEQ, $3, "0", end_label));
         
         // $5 contains the generated statements for the if block
-        // No action needed as they're already in the quadruple array
         
         addQuadruple(createQuadruple(QuadOp_LABEL, end_label, NULL, NULL));
         $$ = NULL;
@@ -1362,6 +1361,8 @@ int main() {
     if (result == 0) {
         printf("Parsing completed successfully.\n");
     }
+    rearrangeQuadrupleCalls();
+    removeUncalledFunctions();
     rearrangeQuadrupleLoops(loopDepth);
     //printf("%d", loopDepth);
     printQuadruples();

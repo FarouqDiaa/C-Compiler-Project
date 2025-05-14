@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 // Array to store quadruples
 Quadruple* quadruples[MAX_QUADS];
@@ -124,6 +125,107 @@ void rearrangeQuadrupleLoops(int loopDepth) {
                 }
             }
         }
+    }
+}
+
+// reaarange functions so each function code appears only after its call
+void rearrangeQuadrupleCalls() {
+    int i, j, k;
+    // Find the CALL instruction
+    for (i = 0; i < quadCount; i++) {
+        if (quadruples[i]->op == QuadOp_CALL) {
+            // Find the corresponding FUNC_LABEL
+            char* functionName = quadruples[i]->arg1;  // Assuming function name is in arg1
+            int funcLabelIndex = -1;
+
+            for (j = 0; j < i; j++) {
+                if (quadruples[j]->op == QuadOp_FUNC_LABEL && strcmp(quadruples[j]->arg1, functionName) == 0) {
+                    funcLabelIndex = j;
+                    break;
+                }
+            }
+
+            if (funcLabelIndex != -1) {
+                // Calculate the size of the function block
+                int functionBlockSize = 0;
+                for (k = funcLabelIndex; k < quadCount; k++) {
+                    if (quadruples[k]->op == QuadOp_RET) {
+                        functionBlockSize = k - funcLabelIndex + 1;
+                        break;
+                    }
+                }
+
+                if (functionBlockSize > 0) {
+                    // Create a temporary array to store the function block
+                    Quadruple* temp[functionBlockSize];
+                    for (int l = 0; l < functionBlockSize; l++) {
+                        temp[l] = quadruples[funcLabelIndex + l];
+                    }
+
+                    // Shift the quadruples after the function block to make space
+                    memmove(&quadruples[funcLabelIndex], &quadruples[funcLabelIndex + functionBlockSize], (i - funcLabelIndex) * sizeof(Quadruple*));
+
+                    // Copy the function block after the CALL instruction
+                    for (int l = 0; l < functionBlockSize; l++) {
+                        quadruples[i - functionBlockSize + 1 + l] = temp[l];
+                    }
+                }
+            }
+        }
+    }
+}
+
+void removeUncalledFunctions() {
+    int i = 0;
+    while (i < quadCount) {
+        if (quadruples[i]->op == QuadOp_FUNC_LABEL) {
+            char* functionName = quadruples[i]->arg1;
+            int j;
+            bool called = false;
+
+            // Check if the function is called
+            for (j = 0; j < quadCount; j++) {
+                if (quadruples[j]->op == QuadOp_CALL && strcmp(quadruples[j]->arg1, functionName) == 0) {
+                    called = true;
+                    break;
+                }
+            }
+
+            // If the function is not called, remove its quadruples
+            if (!called) {
+                int funcLabelIndex = i;
+                int functionBlockSize = 0;
+                int k;
+                for (k = funcLabelIndex; k < quadCount; k++) {
+                    if (quadruples[k]->op == QuadOp_RET) {
+                        functionBlockSize = k - funcLabelIndex + 1;
+                        break;
+                    }
+                }
+
+                if (functionBlockSize > 0) {
+                    // Free the memory for the quadruples in the function block
+                    for (int l = 0; l < functionBlockSize; l++) {
+                        Quadruple* quadToRemove = quadruples[funcLabelIndex + l];
+                        free(quadToRemove->arg1);
+                        free(quadToRemove->arg2);
+                        free(quadToRemove->result);
+                        free(quadToRemove);
+                    }
+
+                    // Shift the remaining quadruples to fill the gap
+                    memmove(&quadruples[funcLabelIndex], &quadruples[funcLabelIndex + functionBlockSize], (quadCount - funcLabelIndex - functionBlockSize) * sizeof(Quadruple*));
+
+                    // Update quadCount
+                    quadCount -= functionBlockSize;
+
+                    // Reset i to re-check the current position
+                    i = 0;
+                    continue;
+                }
+            }
+        }
+        i++;
     }
 }
 
