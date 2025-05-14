@@ -149,7 +149,7 @@ typedef struct LoopContext {
 %token <num> NUMBER
 %token <fnum> FLOAT_NUM
 %token BOOL
-%token <str> ID IF 
+%token <str> ID IF LPAREN
 %token <str> STR
 %token <str> CHAR_LITERAL
 
@@ -178,7 +178,7 @@ typedef struct LoopContext {
 %token NULL_TOKEN
 
 %token LBRACE RBRACE
-%token LPAREN RPAREN
+%token  RPAREN
 %token LBRACKET RBRACKET
 %token COMMA
 
@@ -245,7 +245,6 @@ function_definition:
     }
     | function_header LPAREN RPAREN compound_stmt
     {
-        $$ = $1;
     }
     {
         Symbol* func_sym = lookup_symbol(current_scope, current_function);

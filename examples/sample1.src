@@ -1,10 +1,11 @@
 // Test complex type errors and compatibility issues
-
 int func(int y)
 {
-  
+  int y;
 }
 int main() {
     int y;
+    int z = func(10);
+    bool z;
     return 0;
 }
