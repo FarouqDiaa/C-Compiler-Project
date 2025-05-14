@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+typedef struct {
+    char type[50];
+} ParamInfo;
+
 // Enum for symbol kinds
 typedef enum {
     SYM_VARIABLE,
@@ -28,6 +32,9 @@ typedef struct Symbol {
     bool is_initialized;     // Whether the symbol has been initialized
     bool is_used;            // Whether the symbol has been used
     int scope_depth;         // Depth of scope
+
+    ParamInfo* params;   // Array of parameter types (for functions)
+    int param_count;     // Number of parameters (for functions)
 } Symbol;
 
 // Structure to represent a scope
@@ -38,6 +45,7 @@ typedef struct Scope {
     Symbol* symbols;         // Symbols in this scope
     int symbol_count;        // Number of symbols in this scope
     int max_symbols;         // Maximum capacity of symbols
+    int return_count;        // Number of return statements in this scope
 } Scope;
 
 // Initialize the symbol table system
@@ -80,6 +88,16 @@ Scope* enter_scope(Scope* current_scope, ScopeType type);
 
 // Exit the current scope
 Scope* exit_scope(Scope* current_scope);
+
+void set_function_params(Symbol* func_sym, ParamInfo* params, int param_count);
+
+// Get parameter types/count for a function symbol
+int get_function_param_count(Symbol* func_sym);
+const char* get_function_param_type(Symbol* func_sym, int index);
+
+// Check argument types/count at call site
+bool check_function_call(Symbol* func_sym, char** arg_types, int arg_count, int call_line);
+
 
 
 #endif // SYMBOL_TABLE_H

@@ -1,5 +1,10 @@
-bool x;
+// Test complex type errors and compatibility issues
 
+int func(int y)
+{
+  
+}
 int main() {
-   x=4.1;
+    int y;
+    return 0;
 }

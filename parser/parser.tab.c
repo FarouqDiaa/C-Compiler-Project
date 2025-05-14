@@ -90,6 +90,11 @@ Scope* current_scope = NULL;
 bool is_const_declaration = false;
 char current_type[50];
 char current_function[50] = "";
+ParamInfo func_param_list[20];
+int func_param_count = 0;
+int has_return_stmt = 0;
+char* call_arg_types[20];
+int call_arg_count = 0;
 int is_number(const char* s) {
     if (!s) return 0;
     for (int i = 0; s[i]; ++i)
@@ -108,7 +113,50 @@ int is_float(const char* s) {
     return dot;
 }
 
-#line 112 "parser/parser.tab.c"
+
+const char* get_expr_type(Scope* scope, const char* expr) {
+    if (!expr) return "unknown";
+    
+    // Check if it's a symbol in the symbol table
+    Symbol* sym = lookup_symbol(scope, expr);
+    if (sym) {
+        return sym->type;
+    }
+    
+    // Check if it's a character literal
+    if (strlen(expr) >= 3 && expr[0] == '\'' && expr[strlen(expr)-1] == '\'') {
+        return "char";
+    }
+    
+    // Check if it's a string literal
+    if (strlen(expr) >= 2 && expr[0] == '"' && expr[strlen(expr)-1] == '"') {
+        return "char*";  // String literals are char arrays/pointers
+    }
+    
+    // Check if it's an integer or float literal
+    if (is_number(expr)) {
+        return "int";
+    } else if (is_float(expr)) {
+        return "float";
+    }
+    
+    // Default case - could be a temporary variable or unknown
+    return "bool";
+}
+
+// Check if two types are compatible for arithmetic operations - strict equality
+bool check_arithmetic_compatibility(const char* type1, const char* type2) {
+    // Only return true if types are exactly equal
+    if (type1 && type2 && strcmp(type1, type2) == 0) {
+        return true;
+    }
+    
+    return false;
+}
+
+
+
+#line 160 "parser/parser.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -651,21 +699,21 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    96,    96,    96,   109,   110,   114,   115,   116,   117,
-     121,   125,   126,   130,   131,   135,   151,   152,   156,   167,
-     179,   191,   208,   207,   219,   220,   221,   222,   223,   224,
-     227,   228,   231,   232,   233,   234,   235,   236,   237,   238,
-     239,   240,   241,   242,   243,   246,   247,   252,   251,   264,
-     265,   266,   269,   270,   273,   274,   277,   280,   283,   286,
-     289,   290,   291,   294,   297,   300,   303,   306,   309,   312,
-     313,   316,   317,   320,   323,   326,   327,   371,   396,   421,
-     446,   471,   496,   523,   524,   553,   558,   562,   571,   575,
-     584,   588,   595,   604,   608,   615,   622,   629,   639,   640,
-     650,   662,   666,   676,   686,   698,   700,   702,   709,   711,
-     713,   717,   722,   733,   746,   765,   771,   777,   781,   785,
-     789,   793,   797,   801,   807,   818,   831,   832,   835,   836,
-     840,   872,   887,   888,   892,   923,   927,   959,   971,   985,
-     986
+       0,   144,   144,   144,   157,   158,   162,   163,   164,   165,
+     169,   173,   174,   178,   190,   204,   220,   221,   225,   232,
+     245,   258,   276,   275,   286,   287,   288,   289,   290,   291,
+     294,   295,   298,   299,   300,   301,   302,   303,   304,   305,
+     306,   307,   308,   309,   310,   313,   314,   319,   318,   331,
+     332,   333,   336,   337,   340,   341,   344,   347,   350,   353,
+     356,   357,   358,   361,   364,   367,   370,   373,   376,   379,
+     380,   383,   400,   418,   421,   424,   425,   469,   494,   519,
+     544,   569,   594,   621,   622,   651,   656,   660,   669,   673,
+     682,   686,   693,   702,   706,   713,   720,   727,   737,   738,
+     756,   768,   772,   790,   807,   826,   828,   830,   837,   839,
+     841,   845,   850,   861,   874,   893,   899,   905,   909,   913,
+     917,   921,   925,   929,   935,   949,   965,   966,   969,   970,
+     974,  1006,  1021,  1022,  1026,  1056,  1060,  1092,  1104,  1118,
+    1146
 };
 #endif
 
@@ -1434,27 +1482,59 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* $@1: %empty  */
-#line 96 "parser/parser.y"
+#line 144 "parser/parser.y"
     {
         current_scope = create_scope(NULL, SCOPE_GLOBAL);
     }
-#line 1442 "parser/parser.tab.c"
+#line 1490 "parser/parser.tab.c"
     break;
 
   case 3: /* program: $@1 translation_unit  */
-#line 100 "parser/parser.y"
+#line 148 "parser/parser.y"
     {
         check_unused_symbols(current_scope);
         print_symbol_table(current_scope);
     }
-#line 1451 "parser/parser.tab.c"
+#line 1499 "parser/parser.tab.c"
+    break;
+
+  case 13: /* function_definition: function_header LPAREN parameter_list RPAREN compound_stmt  */
+#line 179 "parser/parser.y"
+    {
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym) {
+            set_function_params(func_sym, func_param_list, func_param_count);
+        }
+        if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
+            fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
+                current_function);
+        }
+        has_return_stmt = 0;
+    }
+#line 1515 "parser/parser.tab.c"
+    break;
+
+  case 14: /* function_definition: function_header LPAREN RPAREN compound_stmt  */
+#line 191 "parser/parser.y"
+    {
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym) {
+            set_function_params(func_sym, NULL, 0);
+        }
+        if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
+            fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
+                current_function);
+        }
+        has_return_stmt = 0;
+    }
+#line 1531 "parser/parser.tab.c"
     break;
 
   case 15: /* function_header: datatype ID  */
-#line 136 "parser/parser.y"
+#line 205 "parser/parser.y"
     {
         strncpy(current_function, (yyvsp[0].str), sizeof(current_function) - 1);
-        // Check for duplicate function
+        func_param_count = 0;
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[0].str));
         if (sym) {
             fprintf(stderr, "Error: Function '%s' already declared at line %d\n", (yyvsp[0].str), line_num);
@@ -1462,26 +1542,22 @@ yyreduce:
             insert_symbol_in_scope(current_scope, (yyvsp[0].str), current_type, SYM_FUNCTION, false, line_num);
         }
     }
-#line 1466 "parser/parser.tab.c"
+#line 1546 "parser/parser.tab.c"
     break;
 
   case 18: /* parameter_declaration: datatype ID  */
-#line 157 "parser/parser.y"
-    {
-        // Add parameter to symbol table
-        Symbol* sym = lookup_symbol(current_scope, (yyvsp[0].str));
-        if (sym) {
-            fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", (yyvsp[0].str), line_num);
-        } else {
-            insert_symbol_in_scope(current_scope, (yyvsp[0].str), current_type, SYM_PARAMETER, false, line_num);
-            mark_symbol_initialized(current_scope, (yyvsp[0].str));
-        }
+#line 226 "parser/parser.y"
+    {   
+        
+        insert_symbol_in_scope(current_scope, (yyvsp[0].str), current_type, SYM_PARAMETER, false, line_num);
+        mark_symbol_initialized(current_scope, (yyvsp[0].str));
+        strcpy(func_param_list[func_param_count++].type, current_type);   
     }
-#line 1481 "parser/parser.tab.c"
+#line 1557 "parser/parser.tab.c"
     break;
 
   case 19: /* parameter_declaration: datatype MULTIPLY ID  */
-#line 168 "parser/parser.y"
+#line 233 "parser/parser.y"
     {
         char pointer_type[50];
         snprintf(pointer_type, sizeof(pointer_type), "%s*", current_type);
@@ -1491,13 +1567,14 @@ yyreduce:
         } else {
             insert_symbol_in_scope(current_scope, (yyvsp[0].str), pointer_type, SYM_PARAMETER, false, line_num);
             mark_symbol_initialized(current_scope, (yyvsp[0].str));
+            strcpy(func_param_list[func_param_count++].type, pointer_type);
         }
     }
-#line 1497 "parser/parser.tab.c"
+#line 1574 "parser/parser.tab.c"
     break;
 
   case 20: /* parameter_declaration: CONST datatype ID  */
-#line 180 "parser/parser.y"
+#line 246 "parser/parser.y"
     {
         char const_type[50];
         snprintf(const_type, sizeof(const_type), "const %s", current_type);
@@ -1507,13 +1584,14 @@ yyreduce:
         } else {
             insert_symbol_in_scope(current_scope, (yyvsp[0].str), const_type, SYM_PARAMETER, true, line_num);
             mark_symbol_initialized(current_scope, (yyvsp[0].str));
+            strcpy(func_param_list[func_param_count++].type, const_type);
         }
     }
-#line 1513 "parser/parser.tab.c"
+#line 1591 "parser/parser.tab.c"
     break;
 
   case 21: /* parameter_declaration: CONST datatype MULTIPLY ID  */
-#line 192 "parser/parser.y"
+#line 259 "parser/parser.y"
     {
         char const_pointer_type[50];
         snprintf(const_pointer_type, sizeof(const_pointer_type), "const %s*", current_type);
@@ -1523,86 +1601,127 @@ yyreduce:
         } else {
             insert_symbol_in_scope(current_scope, (yyvsp[0].str), const_pointer_type, SYM_PARAMETER, true, line_num);
             mark_symbol_initialized(current_scope, (yyvsp[0].str));
+            strcpy(func_param_list[func_param_count++].type, const_pointer_type);
         }
     }
-#line 1529 "parser/parser.tab.c"
+#line 1608 "parser/parser.tab.c"
     break;
 
   case 22: /* $@2: %empty  */
-#line 208 "parser/parser.y"
+#line 276 "parser/parser.y"
     {
-        // Create a new scope for compound statement
         current_scope = enter_scope(current_scope, SCOPE_LOCAL);
+        current_scope->return_count = 0; // Reset return count for new scope
     }
-#line 1538 "parser/parser.tab.c"
+#line 1617 "parser/parser.tab.c"
     break;
 
   case 23: /* compound_stmt: LBRACE $@2 stmt_list RBRACE  */
-#line 213 "parser/parser.y"
+#line 281 "parser/parser.y"
     {
-        // Exit compound statement scope
         current_scope = exit_scope(current_scope);
     }
-#line 1547 "parser/parser.tab.c"
+#line 1625 "parser/parser.tab.c"
     break;
 
   case 24: /* datatype: INT  */
-#line 219 "parser/parser.y"
+#line 286 "parser/parser.y"
                 { strcpy(current_type, "int"); }
-#line 1553 "parser/parser.tab.c"
+#line 1631 "parser/parser.tab.c"
     break;
 
   case 25: /* datatype: FLOAT  */
-#line 220 "parser/parser.y"
+#line 287 "parser/parser.y"
                 { strcpy(current_type, "float"); }
-#line 1559 "parser/parser.tab.c"
+#line 1637 "parser/parser.tab.c"
     break;
 
   case 26: /* datatype: CHAR  */
-#line 221 "parser/parser.y"
+#line 288 "parser/parser.y"
                 { strcpy(current_type, "char"); }
-#line 1565 "parser/parser.tab.c"
+#line 1643 "parser/parser.tab.c"
     break;
 
   case 27: /* datatype: DOUBLE  */
-#line 222 "parser/parser.y"
+#line 289 "parser/parser.y"
                 { strcpy(current_type, "double"); }
-#line 1571 "parser/parser.tab.c"
+#line 1649 "parser/parser.tab.c"
     break;
 
   case 28: /* datatype: VOID  */
-#line 223 "parser/parser.y"
+#line 290 "parser/parser.y"
                 { strcpy(current_type, "void"); }
-#line 1577 "parser/parser.tab.c"
+#line 1655 "parser/parser.tab.c"
     break;
 
   case 29: /* datatype: BOOL  */
-#line 224 "parser/parser.y"
+#line 291 "parser/parser.y"
                 { strcpy(current_type, "bool"); }
-#line 1583 "parser/parser.tab.c"
+#line 1661 "parser/parser.tab.c"
     break;
 
   case 47: /* $@3: %empty  */
-#line 252 "parser/parser.y"
+#line 319 "parser/parser.y"
     {
         // Create a new scope for the for loop and its init statement
         current_scope = enter_scope(current_scope, SCOPE_LOCAL);
     }
-#line 1592 "parser/parser.tab.c"
+#line 1670 "parser/parser.tab.c"
     break;
 
   case 48: /* for_stmt: FOR LPAREN $@3 for_init SEMI for_cond SEMI for_update RPAREN stmt  */
-#line 257 "parser/parser.y"
+#line 324 "parser/parser.y"
     {
         // Exit the for loop scope
         print_symbol_table(current_scope);
         current_scope = exit_scope(current_scope);
     }
-#line 1602 "parser/parser.tab.c"
+#line 1680 "parser/parser.tab.c"
+    break;
+
+  case 71: /* arg_list: expr  */
+#line 384 "parser/parser.y"
+    {
+        call_arg_count = 0;
+        // Determine the type of $1
+        Symbol* sym = lookup_symbol(current_scope, (yyvsp[0].str));
+        if (sym) {
+            call_arg_types[call_arg_count++] = sym->type;
+        } else if ((yyvsp[0].str) && strlen((yyvsp[0].str)) == 3 && (yyvsp[0].str)[0] == '\'' && (yyvsp[0].str)[2] == '\'') {
+            call_arg_types[call_arg_count++] = "char";
+        } else if (is_number((yyvsp[0].str))) {
+            call_arg_types[call_arg_count++] = "int";
+        } else if (is_float((yyvsp[0].str))) {
+            call_arg_types[call_arg_count++] = "float";
+        } else {
+            call_arg_types[call_arg_count++] = current_type; // fallback
+        }
+    }
+#line 1701 "parser/parser.tab.c"
+    break;
+
+  case 72: /* arg_list: arg_list COMMA expr  */
+#line 401 "parser/parser.y"
+    {
+        // Determine the type of $3
+        Symbol* sym = lookup_symbol(current_scope, (yyvsp[0].str));
+        if (sym) {
+            call_arg_types[call_arg_count++] = sym->type;
+        } else if ((yyvsp[0].str) && strlen((yyvsp[0].str)) == 3 && (yyvsp[0].str)[0] == '\'' && (yyvsp[0].str)[2] == '\'') {
+            call_arg_types[call_arg_count++] = "char";
+        } else if (is_number((yyvsp[0].str))) {
+            call_arg_types[call_arg_count++] = "int";
+        } else if (is_float((yyvsp[0].str))) {
+            call_arg_types[call_arg_count++] = "float";
+        } else {
+            call_arg_types[call_arg_count++] = current_type; // fallback
+        }
+    }
+#line 1721 "parser/parser.tab.c"
     break;
 
   case 76: /* assign_expr: ID ASSIGN assign_expr  */
-#line 328 "parser/parser.y"
+#line 426 "parser/parser.y"
     {   
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
         if (sym) {
@@ -1646,11 +1765,11 @@ yyreduce:
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", (yyvsp[-2].str), line_num);
         }
     }
-#line 1650 "parser/parser.tab.c"
+#line 1769 "parser/parser.tab.c"
     break;
 
   case 77: /* assign_expr: MULTIPLY ID ASSIGN assign_expr  */
-#line 372 "parser/parser.y"
+#line 470 "parser/parser.y"
     {
         // Handle pointer dereference assignment
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
@@ -1675,11 +1794,11 @@ yyreduce:
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", (yyvsp[-2].str), line_num);
         }
     }
-#line 1679 "parser/parser.tab.c"
+#line 1798 "parser/parser.tab.c"
     break;
 
   case 78: /* assign_expr: ID ADD_ASSIGN assign_expr  */
-#line 397 "parser/parser.y"
+#line 495 "parser/parser.y"
     {
         // Mark variable as used and initialized
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
@@ -1704,11 +1823,11 @@ yyreduce:
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", (yyvsp[-2].str), line_num);
         }
     }
-#line 1708 "parser/parser.tab.c"
+#line 1827 "parser/parser.tab.c"
     break;
 
   case 79: /* assign_expr: ID SUB_ASSIGN assign_expr  */
-#line 422 "parser/parser.y"
+#line 520 "parser/parser.y"
     {
         // Mark variable as used and initialized
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
@@ -1733,11 +1852,11 @@ yyreduce:
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", (yyvsp[-2].str), line_num);
         }
     }
-#line 1737 "parser/parser.tab.c"
+#line 1856 "parser/parser.tab.c"
     break;
 
   case 80: /* assign_expr: ID MUL_ASSIGN assign_expr  */
-#line 447 "parser/parser.y"
+#line 545 "parser/parser.y"
     {
         // Mark variable as used and initialized
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
@@ -1762,11 +1881,11 @@ yyreduce:
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", (yyvsp[-2].str), line_num);
         }
     }
-#line 1766 "parser/parser.tab.c"
+#line 1885 "parser/parser.tab.c"
     break;
 
   case 81: /* assign_expr: ID DIV_ASSIGN assign_expr  */
-#line 472 "parser/parser.y"
+#line 570 "parser/parser.y"
     {
         // Mark variable as used and initialized
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
@@ -1791,11 +1910,11 @@ yyreduce:
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", (yyvsp[-2].str), line_num);
         }
     }
-#line 1795 "parser/parser.tab.c"
+#line 1914 "parser/parser.tab.c"
     break;
 
   case 82: /* assign_expr: ID MOD_ASSIGN assign_expr  */
-#line 497 "parser/parser.y"
+#line 595 "parser/parser.y"
     {
         // Mark variable as used and initialized
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
@@ -1820,11 +1939,11 @@ yyreduce:
             fprintf(stderr, "Error: Undeclared identifier '%s' at line %d\n", (yyvsp[-2].str), line_num);
         }
     }
-#line 1824 "parser/parser.tab.c"
+#line 1943 "parser/parser.tab.c"
     break;
 
   case 84: /* conditional_expr: logical_or_expr QUESTION expr COLON conditional_expr  */
-#line 525 "parser/parser.y"
+#line 623 "parser/parser.y"
     {
         char* temp = nextTemp();
         char* label_true = nextLabel();
@@ -1851,140 +1970,148 @@ yyreduce:
 
         (yyval.str) = temp;
     }
-#line 1855 "parser/parser.tab.c"
+#line 1974 "parser/parser.tab.c"
     break;
 
   case 85: /* logical_expr: conditional_expr  */
-#line 554 "parser/parser.y"
+#line 652 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[0].str);
     }
-#line 1863 "parser/parser.tab.c"
+#line 1982 "parser/parser.tab.c"
     break;
 
   case 86: /* logical_or_expr: logical_and_expr  */
-#line 559 "parser/parser.y"
+#line 657 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[0].str);
     }
-#line 1871 "parser/parser.tab.c"
+#line 1990 "parser/parser.tab.c"
     break;
 
   case 87: /* logical_or_expr: logical_or_expr OR logical_and_expr  */
-#line 563 "parser/parser.y"
+#line 661 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* or_quad = createQuadruple(QuadOp_OR, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(or_quad);
         (yyval.str) = temp;
     }
-#line 1882 "parser/parser.tab.c"
+#line 2001 "parser/parser.tab.c"
     break;
 
   case 88: /* logical_and_expr: equality_expr  */
-#line 572 "parser/parser.y"
+#line 670 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[0].str);
     }
-#line 1890 "parser/parser.tab.c"
+#line 2009 "parser/parser.tab.c"
     break;
 
   case 89: /* logical_and_expr: logical_and_expr AND equality_expr  */
-#line 576 "parser/parser.y"
+#line 674 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* and_quad = createQuadruple(QuadOp_AND, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(and_quad);
         (yyval.str) = temp;
     }
-#line 1901 "parser/parser.tab.c"
+#line 2020 "parser/parser.tab.c"
     break;
 
   case 90: /* equality_expr: relational_expr  */
-#line 585 "parser/parser.y"
+#line 683 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[0].str);
     }
-#line 1909 "parser/parser.tab.c"
+#line 2028 "parser/parser.tab.c"
     break;
 
   case 91: /* equality_expr: equality_expr EQ relational_expr  */
-#line 589 "parser/parser.y"
+#line 687 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* eq_quad = createQuadruple(QuadOp_EQ, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(eq_quad);
         (yyval.str) = temp;
     }
-#line 1920 "parser/parser.tab.c"
+#line 2039 "parser/parser.tab.c"
     break;
 
   case 92: /* equality_expr: equality_expr NE relational_expr  */
-#line 596 "parser/parser.y"
+#line 694 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* ne_quad = createQuadruple(QuadOp_NE, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(ne_quad);
         (yyval.str) = temp;
     }
-#line 1931 "parser/parser.tab.c"
+#line 2050 "parser/parser.tab.c"
     break;
 
   case 93: /* relational_expr: additive_expr  */
-#line 605 "parser/parser.y"
+#line 703 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[0].str);
     }
-#line 1939 "parser/parser.tab.c"
+#line 2058 "parser/parser.tab.c"
     break;
 
   case 94: /* relational_expr: relational_expr LT additive_expr  */
-#line 609 "parser/parser.y"
+#line 707 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* lt_quad = createQuadruple(QuadOp_LT, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(lt_quad);
         (yyval.str) = temp;
     }
-#line 1950 "parser/parser.tab.c"
+#line 2069 "parser/parser.tab.c"
     break;
 
   case 95: /* relational_expr: relational_expr GT additive_expr  */
-#line 616 "parser/parser.y"
+#line 714 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* gt_quad = createQuadruple(QuadOp_GT, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(gt_quad);
         (yyval.str) = temp;
     }
-#line 1961 "parser/parser.tab.c"
+#line 2080 "parser/parser.tab.c"
     break;
 
   case 96: /* relational_expr: relational_expr LE additive_expr  */
-#line 623 "parser/parser.y"
+#line 721 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* le_quad = createQuadruple(QuadOp_LTE, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(le_quad);
         (yyval.str) = temp;
     }
-#line 1972 "parser/parser.tab.c"
+#line 2091 "parser/parser.tab.c"
     break;
 
   case 97: /* relational_expr: relational_expr GE additive_expr  */
-#line 630 "parser/parser.y"
+#line 728 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* ge_quad = createQuadruple(QuadOp_GTE, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(ge_quad);
         (yyval.str) = temp;
     }
-#line 1983 "parser/parser.tab.c"
+#line 2102 "parser/parser.tab.c"
     break;
 
   case 99: /* additive_expr: additive_expr ADD multiplicative_expr  */
-#line 641 "parser/parser.y"
+#line 739 "parser/parser.y"
     {
+        const char* left_type = get_expr_type(current_scope, (yyvsp[-2].str));
+        const char* right_type = get_expr_type(current_scope, (yyvsp[0].str));
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
+
         char* temp = nextTemp();
         Quadruple* add_quad = createQuadruple(QuadOp_ADD, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(add_quad);
@@ -1993,11 +2120,11 @@ yyreduce:
 
         printf("additive_expr: ADD\n");
     }
-#line 1997 "parser/parser.tab.c"
+#line 2124 "parser/parser.tab.c"
     break;
 
   case 100: /* additive_expr: additive_expr SUBTRACT multiplicative_expr  */
-#line 651 "parser/parser.y"
+#line 757 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* add_quad = createQuadruple(QuadOp_SUB, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
@@ -2007,20 +2134,28 @@ yyreduce:
 
         printf("additive_expr: ADD\n");
     }
-#line 2011 "parser/parser.tab.c"
+#line 2138 "parser/parser.tab.c"
     break;
 
   case 101: /* multiplicative_expr: unary_expr  */
-#line 663 "parser/parser.y"
+#line 769 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[0].str);
     }
-#line 2019 "parser/parser.tab.c"
+#line 2146 "parser/parser.tab.c"
     break;
 
   case 102: /* multiplicative_expr: multiplicative_expr MULTIPLY unary_expr  */
-#line 667 "parser/parser.y"
+#line 773 "parser/parser.y"
     {
+
+        const char* left_type = get_expr_type(current_scope, (yyvsp[-2].str));
+        const char* right_type = get_expr_type(current_scope, (yyvsp[0].str));
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* mul_quad = createQuadruple(QuadOp_MUL, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(mul_quad);
@@ -2029,12 +2164,19 @@ yyreduce:
 
         printf("multiplicative_expr: MUL\n");
     }
-#line 2033 "parser/parser.tab.c"
+#line 2168 "parser/parser.tab.c"
     break;
 
   case 103: /* multiplicative_expr: multiplicative_expr DIVIDE unary_expr  */
-#line 677 "parser/parser.y"
+#line 791 "parser/parser.y"
     {
+        const char* left_type = get_expr_type(current_scope, (yyvsp[-2].str));
+        const char* right_type = get_expr_type(current_scope, (yyvsp[0].str));
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* div_quad = createQuadruple(QuadOp_DIV, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(div_quad);
@@ -2043,12 +2185,19 @@ yyreduce:
 
         printf("multiplicative_expr: DIV\n");
     }
-#line 2047 "parser/parser.tab.c"
+#line 2189 "parser/parser.tab.c"
     break;
 
   case 104: /* multiplicative_expr: multiplicative_expr MODULO unary_expr  */
-#line 687 "parser/parser.y"
+#line 808 "parser/parser.y"
     {
+        const char* left_type = get_expr_type(current_scope, (yyvsp[-2].str));
+        const char* right_type = get_expr_type(current_scope, (yyvsp[0].str));
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* mod_quad = createQuadruple(QuadOp_MOD, strdup((yyvsp[-2].str)), strdup((yyvsp[0].str)), temp);
         addQuadruple(mod_quad);
@@ -2057,60 +2206,60 @@ yyreduce:
 
         printf("multiplicative_expr: MOD\n");
     }
-#line 2061 "parser/parser.tab.c"
+#line 2210 "parser/parser.tab.c"
     break;
 
   case 105: /* unary_expr: postfix_expr  */
-#line 699 "parser/parser.y"
+#line 827 "parser/parser.y"
     { (yyval.str) = (yyvsp[0].str); }
-#line 2067 "parser/parser.tab.c"
+#line 2216 "parser/parser.tab.c"
     break;
 
   case 106: /* unary_expr: UNARY unary_expr  */
-#line 701 "parser/parser.y"
+#line 829 "parser/parser.y"
     { (yyval.str) = (yyvsp[0].str); }
-#line 2073 "parser/parser.tab.c"
+#line 2222 "parser/parser.tab.c"
     break;
 
   case 107: /* unary_expr: SUBTRACT unary_expr  */
-#line 703 "parser/parser.y"
+#line 831 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* neg_quad = createQuadruple(QuadOp_NEG, strdup((yyvsp[0].str)), NULL, temp);
         addQuadruple(neg_quad);
         (yyval.str) = temp;
     }
-#line 2084 "parser/parser.tab.c"
+#line 2233 "parser/parser.tab.c"
     break;
 
   case 108: /* unary_expr: MULTIPLY unary_expr  */
-#line 710 "parser/parser.y"
+#line 838 "parser/parser.y"
     { (yyval.str) = (yyvsp[0].str); }
-#line 2090 "parser/parser.tab.c"
+#line 2239 "parser/parser.tab.c"
     break;
 
   case 109: /* unary_expr: NOT unary_expr  */
-#line 712 "parser/parser.y"
+#line 840 "parser/parser.y"
     { (yyval.str) = (yyvsp[0].str); }
-#line 2096 "parser/parser.tab.c"
+#line 2245 "parser/parser.tab.c"
     break;
 
   case 110: /* unary_expr: BIT_AND unary_expr  */
-#line 714 "parser/parser.y"
+#line 842 "parser/parser.y"
     { (yyval.str) = (yyvsp[0].str); }
-#line 2102 "parser/parser.tab.c"
+#line 2251 "parser/parser.tab.c"
     break;
 
   case 111: /* postfix_expr: primary_expr  */
-#line 718 "parser/parser.y"
+#line 846 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[0].str);
     }
-#line 2110 "parser/parser.tab.c"
+#line 2259 "parser/parser.tab.c"
     break;
 
   case 112: /* postfix_expr: postfix_expr UNARY_INC  */
-#line 723 "parser/parser.y"
+#line 851 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* assign_temp = createQuadruple(QuadOp_ASSIGN, strdup((yyvsp[-1].str)), NULL, temp);
@@ -2121,11 +2270,11 @@ yyreduce:
 
         (yyval.str) = temp;
     }
-#line 2125 "parser/parser.tab.c"
+#line 2274 "parser/parser.tab.c"
     break;
 
   case 113: /* postfix_expr: postfix_expr UNARY_DEC  */
-#line 734 "parser/parser.y"
+#line 862 "parser/parser.y"
     {
         char* temp = nextTemp();
         Quadruple* assign_temp = createQuadruple(QuadOp_ASSIGN, strdup((yyvsp[-1].str)), NULL, temp);
@@ -2136,11 +2285,11 @@ yyreduce:
 
         (yyval.str) = temp;
     }
-#line 2140 "parser/parser.tab.c"
+#line 2289 "parser/parser.tab.c"
     break;
 
   case 114: /* primary_expr: ID  */
-#line 747 "parser/parser.y"
+#line 875 "parser/parser.y"
     { 
         printf("primary_expr: ID = %s\n", (yyvsp[0].str));
         // Mark the symbol as used when referenced
@@ -2159,87 +2308,87 @@ yyreduce:
             (yyval.str) = strdup("0"); // Or some default value, like "0"
         }
     }
-#line 2163 "parser/parser.tab.c"
+#line 2312 "parser/parser.tab.c"
     break;
 
   case 115: /* primary_expr: NUMBER  */
-#line 766 "parser/parser.y"
+#line 894 "parser/parser.y"
     {
         char* num_str = (char*)malloc(20);
         sprintf(num_str, "%d", (yyvsp[0].num));
         (yyval.str) = num_str;
     }
-#line 2173 "parser/parser.tab.c"
+#line 2322 "parser/parser.tab.c"
     break;
 
   case 116: /* primary_expr: FLOAT_NUM  */
-#line 772 "parser/parser.y"
+#line 900 "parser/parser.y"
     {
         char* float_str = (char*)malloc(50);
         sprintf(float_str, "%f", (yyvsp[0].fnum));
         (yyval.str) = float_str;
     }
-#line 2183 "parser/parser.tab.c"
+#line 2332 "parser/parser.tab.c"
     break;
 
   case 117: /* primary_expr: STR  */
-#line 778 "parser/parser.y"
+#line 906 "parser/parser.y"
     {
         (yyval.str) = strdup((yyvsp[0].str));
     }
-#line 2191 "parser/parser.tab.c"
+#line 2340 "parser/parser.tab.c"
     break;
 
   case 118: /* primary_expr: CHAR_LITERAL  */
-#line 782 "parser/parser.y"
+#line 910 "parser/parser.y"
     {
         (yyval.str) = strdup((yyvsp[0].str));
     }
-#line 2199 "parser/parser.tab.c"
+#line 2348 "parser/parser.tab.c"
     break;
 
   case 119: /* primary_expr: TRUE  */
-#line 786 "parser/parser.y"
+#line 914 "parser/parser.y"
     {
         (yyval.str) = strdup("1");
     }
-#line 2207 "parser/parser.tab.c"
+#line 2356 "parser/parser.tab.c"
     break;
 
   case 120: /* primary_expr: FALSE  */
-#line 790 "parser/parser.y"
+#line 918 "parser/parser.y"
     {
         (yyval.str) = strdup("0");
     }
-#line 2215 "parser/parser.tab.c"
+#line 2364 "parser/parser.tab.c"
     break;
 
   case 121: /* primary_expr: NULL_TOKEN  */
-#line 794 "parser/parser.y"
+#line 922 "parser/parser.y"
     {
         (yyval.str) = strdup("0");
     }
-#line 2223 "parser/parser.tab.c"
+#line 2372 "parser/parser.tab.c"
     break;
 
   case 122: /* primary_expr: LPAREN expr RPAREN  */
-#line 798 "parser/parser.y"
+#line 926 "parser/parser.y"
     {
         (yyval.str) = (yyvsp[-1].str);
     }
-#line 2231 "parser/parser.tab.c"
+#line 2380 "parser/parser.tab.c"
     break;
 
   case 123: /* primary_expr: function_call  */
-#line 802 "parser/parser.y"
+#line 930 "parser/parser.y"
     {
         (yyval.str) = strdup((yyvsp[0].str));
     }
-#line 2239 "parser/parser.tab.c"
+#line 2388 "parser/parser.tab.c"
     break;
 
   case 124: /* function_call: ID LPAREN RPAREN  */
-#line 808 "parser/parser.y"
+#line 936 "parser/parser.y"
     {
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
         if (!sym) {
@@ -2247,14 +2396,17 @@ yyreduce:
         } else if (sym->kind != SYM_FUNCTION) {
             fprintf(stderr, "Error: '%s' is not a function at line %d\n", (yyvsp[-2].str), line_num);
         } else {
+            if (!check_function_call(sym, NULL, 0, line_num)) {
+                // Error already printed
+            }
             mark_symbol_used(current_scope, (yyvsp[-2].str));
         }
     }
-#line 2254 "parser/parser.tab.c"
+#line 2406 "parser/parser.tab.c"
     break;
 
   case 125: /* function_call: ID LPAREN arg_list RPAREN  */
-#line 819 "parser/parser.y"
+#line 950 "parser/parser.y"
     {
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-3].str));
         if (!sym) {
@@ -2262,18 +2414,21 @@ yyreduce:
         } else if (sym->kind != SYM_FUNCTION) {
             fprintf(stderr, "Error: '%s' is not a function at line %d\n", (yyvsp[-3].str), line_num);
         } else {
+            if (!check_function_call(sym, call_arg_types, call_arg_count, line_num)) {
+                // Error already printed
+            }
             mark_symbol_used(current_scope, (yyvsp[-3].str));
         }
     }
-#line 2269 "parser/parser.tab.c"
+#line 2424 "parser/parser.tab.c"
     break;
 
   case 130: /* const_declarator: ID ASSIGN expr  */
-#line 841 "parser/parser.y"
+#line 975 "parser/parser.y"
     {
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
         if (sym) {
-            fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", (yyvsp[-2].str), line_num);
+            fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", (yyvsp[-2].str), sym->line_number);
         } else {
             // Type compatibility check for const initialization
             const char* left_type = current_type;
@@ -2301,11 +2456,11 @@ yyreduce:
             addQuadruple(quad);
         }
     }
-#line 2305 "parser/parser.tab.c"
+#line 2460 "parser/parser.tab.c"
     break;
 
   case 131: /* const_declarator: MULTIPLY ID ASSIGN expr  */
-#line 873 "parser/parser.y"
+#line 1007 "parser/parser.y"
     {
         // Pointer const variable (optional: handle as needed)
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
@@ -2318,11 +2473,11 @@ yyreduce:
             mark_symbol_initialized(current_scope, (yyvsp[-2].str));
         }
     }
-#line 2322 "parser/parser.tab.c"
+#line 2477 "parser/parser.tab.c"
     break;
 
   case 134: /* declarator: ID  */
-#line 893 "parser/parser.y"
+#line 1027 "parser/parser.y"
     {
         // First check if already declared in current scope
         bool is_redeclaration = false;
@@ -2340,8 +2495,7 @@ yyreduce:
                      current_scope->parent && 
                      sym->scope_depth == current_scope->parent->depth &&
                      // Make sure we're still in the same function
-                     strcmp(current_function, "") != 0 &&
-                     strstr(sym->name, current_function) != NULL) {
+                     strcmp(current_function, "") != 0 ) {
                 fprintf(stderr, "Error: Local variable '%s' at line %d shadows parameter declared at line %d\n", 
                         (yyvsp[0].str), line_num, sym->line_number);
                 is_redeclaration = true;
@@ -2353,23 +2507,23 @@ yyreduce:
             insert_symbol_in_scope(current_scope, (yyvsp[0].str), current_type, SYM_VARIABLE, is_const_declaration, line_num);
         }
     }
-#line 2357 "parser/parser.tab.c"
+#line 2511 "parser/parser.tab.c"
     break;
 
   case 135: /* declarator: MULTIPLY declarator  */
-#line 924 "parser/parser.y"
+#line 1057 "parser/parser.y"
     {
         // ... (Implementation for pointer declaration) ...
     }
-#line 2365 "parser/parser.tab.c"
+#line 2519 "parser/parser.tab.c"
     break;
 
   case 136: /* declarator: ID ASSIGN expr  */
-#line 928 "parser/parser.y"
+#line 1061 "parser/parser.y"
     {
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-2].str));
         if (sym && sym->scope_depth == current_scope->depth) {
-            fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", (yyvsp[-2].str), line_num);
+            fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", (yyvsp[-2].str), sym->line_number);
         } else {
             // Type compatibility check for initialization
             const char* left_type = current_type;
@@ -2397,11 +2551,11 @@ yyreduce:
             addQuadruple(quad);
         }
     }
-#line 2401 "parser/parser.tab.c"
+#line 2555 "parser/parser.tab.c"
     break;
 
   case 137: /* declarator: ID LBRACKET primary_expr RBRACKET  */
-#line 960 "parser/parser.y"
+#line 1093 "parser/parser.y"
     {
         // Array declaration (optional: handle array size/type)
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-3].str));
@@ -2413,11 +2567,11 @@ yyreduce:
             insert_symbol_in_scope(current_scope, (yyvsp[-3].str), array_type, SYM_VARIABLE, is_const_declaration, line_num);
         }
     }
-#line 2417 "parser/parser.tab.c"
+#line 2571 "parser/parser.tab.c"
     break;
 
   case 138: /* declarator: ID LBRACKET primary_expr RBRACKET ASSIGN expr  */
-#line 972 "parser/parser.y"
+#line 1105 "parser/parser.y"
     {
         // Array declaration with initialization (optional: handle as needed)
         Symbol* sym = lookup_symbol(current_scope, (yyvsp[-5].str));
@@ -2430,11 +2584,60 @@ yyreduce:
             mark_symbol_initialized(current_scope, (yyvsp[-5].str));
         }
     }
-#line 2434 "parser/parser.tab.c"
+#line 2588 "parser/parser.tab.c"
+    break;
+
+  case 139: /* return_stmt: RETURN expr SEMI  */
+#line 1119 "parser/parser.y"
+    {
+        // Track return count in current scope
+        current_scope->return_count++;
+        if (current_scope->return_count > 1) {
+            fprintf(stderr, "Warning: Multiple return statements in the same scope at line %d\n", line_num);
+        }
+        has_return_stmt = 1;
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        const char* func_return_type = func_sym ? func_sym->type : NULL;
+        const char* return_expr_type = NULL;
+        Symbol* expr_sym = lookup_symbol(current_scope, (yyvsp[-1].str));
+        if (expr_sym) {
+            return_expr_type = expr_sym->type;
+        } else if ((yyvsp[-1].str) && strlen((yyvsp[-1].str)) == 3 && (yyvsp[-1].str)[0] == '\'' && (yyvsp[-1].str)[2] == '\'') {
+            return_expr_type = "char";
+        } else if (is_number((yyvsp[-1].str))) {
+            return_expr_type = "int";
+        } else if (is_float((yyvsp[-1].str))) {
+            return_expr_type = "float";
+        } else {
+            return_expr_type = current_type; // fallback
+        }
+        if (func_return_type && !check_type_compatibility(func_return_type, return_expr_type)) {
+            fprintf(stderr, "Error: Return type mismatch in function '%s' at line %d ('%s' expected, got '%s')\n",
+                current_function, line_num, func_return_type, return_expr_type);
+        }
+    }
+#line 2620 "parser/parser.tab.c"
+    break;
+
+  case 140: /* return_stmt: RETURN SEMI  */
+#line 1147 "parser/parser.y"
+    {
+        current_scope->return_count++;
+        if (current_scope->return_count > 1) {
+            fprintf(stderr, "Warning: Multiple return statements in the same scope at line %d\n", line_num);
+        }
+        has_return_stmt = 1;
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym && strcmp(func_sym->type, "void") != 0) {
+            fprintf(stderr, "Warning: Non-void function '%s' should return a value at line %d\n",
+                current_function, line_num);
+        }
+    }
+#line 2637 "parser/parser.tab.c"
     break;
 
 
-#line 2438 "parser/parser.tab.c"
+#line 2641 "parser/parser.tab.c"
 
       default: break;
     }
@@ -2627,7 +2830,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 989 "parser/parser.y"
+#line 1161 "parser/parser.y"
 
 
 void yyerror(const char *s) {

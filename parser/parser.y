@@ -18,6 +18,11 @@ Scope* current_scope = NULL;
 bool is_const_declaration = false;
 char current_type[50];
 char current_function[50] = "";
+ParamInfo func_param_list[20];
+int func_param_count = 0;
+int has_return_stmt = 0;
+char* call_arg_types[20];
+int call_arg_count = 0;
 int is_number(const char* s) {
     if (!s) return 0;
     for (int i = 0; s[i]; ++i)
@@ -35,6 +40,49 @@ int is_float(const char* s) {
     }
     return dot;
 }
+
+
+const char* get_expr_type(Scope* scope, const char* expr) {
+    if (!expr) return "unknown";
+    
+    // Check if it's a symbol in the symbol table
+    Symbol* sym = lookup_symbol(scope, expr);
+    if (sym) {
+        return sym->type;
+    }
+    
+    // Check if it's a character literal
+    if (strlen(expr) >= 3 && expr[0] == '\'' && expr[strlen(expr)-1] == '\'') {
+        return "char";
+    }
+    
+    // Check if it's a string literal
+    if (strlen(expr) >= 2 && expr[0] == '"' && expr[strlen(expr)-1] == '"') {
+        return "char*";  // String literals are char arrays/pointers
+    }
+    
+    // Check if it's an integer or float literal
+    if (is_number(expr)) {
+        return "int";
+    } else if (is_float(expr)) {
+        return "float";
+    }
+    
+    // Default case - could be a temporary variable or unknown
+    return "bool";
+}
+
+// Check if two types are compatible for arithmetic operations - strict equality
+bool check_arithmetic_compatibility(const char* type1, const char* type2) {
+    // Only return true if types are exactly equal
+    if (type1 && type2 && strcmp(type1, type2) == 0) {
+        return true;
+    }
+    
+    return false;
+}
+
+
 
 // Function label management
 typedef struct {
@@ -181,6 +229,17 @@ function_prototype:
 
 function_definition:
     function_header LPAREN parameter_list RPAREN compound_stmt
+    {
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym) {
+            set_function_params(func_sym, func_param_list, func_param_count);
+        }
+        if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
+            fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
+                current_function);
+        }
+        has_return_stmt = 0;
+    }
     {   
         $$ = $1;
     }
@@ -188,13 +247,23 @@ function_definition:
     {
         $$ = $1;
     }
-    ;
-
+    {
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym) {
+            set_function_params(func_sym, NULL, 0);
+        }
+        if (func_sym && strcmp(func_sym->type, "void") != 0 && has_return_stmt == 0) {
+            fprintf(stderr, "Error: Non-void function '%s' is missing a return statement\n",
+                current_function);
+        }
+        has_return_stmt = 0;
+    }
+;
 function_header:
     datatype ID
     {
         strncpy(current_function, $2, sizeof(current_function) - 1);
-        // Check for duplicate function
+        func_param_count = 0;
         Symbol* sym = lookup_symbol(current_scope, $2);
         if (sym) {
             fprintf(stderr, "Error: Function '%s' already declared at line %d\n", $2, line_num);
@@ -207,7 +276,7 @@ function_header:
         }
         $$ = $2;
     }
-    ;
+;
 
 parameter_list:
     parameter_declaration
@@ -216,15 +285,11 @@ parameter_list:
 
 parameter_declaration: 
     datatype ID
-    {
-        // Add parameter to symbol table
-        Symbol* sym = lookup_symbol(current_scope, $2);
-        if (sym) {
-            fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", $2, line_num);
-        } else {
-            insert_symbol_in_scope(current_scope, $2, current_type, SYM_PARAMETER, false, line_num);
-            mark_symbol_initialized(current_scope, $2);
-        }
+    {   
+        
+        insert_symbol_in_scope(current_scope, $2, current_type, SYM_PARAMETER, false, line_num);
+        mark_symbol_initialized(current_scope, $2);
+        strcpy(func_param_list[func_param_count++].type, current_type);   
     }
     | datatype MULTIPLY ID
     {
@@ -236,6 +301,7 @@ parameter_declaration:
         } else {
             insert_symbol_in_scope(current_scope, $3, pointer_type, SYM_PARAMETER, false, line_num);
             mark_symbol_initialized(current_scope, $3);
+            strcpy(func_param_list[func_param_count++].type, pointer_type);
         }
     }
     | CONST datatype ID
@@ -248,6 +314,7 @@ parameter_declaration:
         } else {
             insert_symbol_in_scope(current_scope, $3, const_type, SYM_PARAMETER, true, line_num);
             mark_symbol_initialized(current_scope, $3);
+            strcpy(func_param_list[func_param_count++].type, const_type);
         }
     }
     | CONST datatype MULTIPLY ID
@@ -260,19 +327,19 @@ parameter_declaration:
         } else {
             insert_symbol_in_scope(current_scope, $4, const_pointer_type, SYM_PARAMETER, true, line_num);
             mark_symbol_initialized(current_scope, $4);
+            strcpy(func_param_list[func_param_count++].type, const_pointer_type);
         }
     }
-    ;
+;
 
 compound_stmt: 
     LBRACE 
     {
-        // Create a new scope for compound statement
         current_scope = enter_scope(current_scope, SCOPE_LOCAL);
+        current_scope->return_count = 0; // Reset return count for new scope
     }
     stmt_list RBRACE
     {
-        // Exit compound statement scope
         current_scope = exit_scope(current_scope);
     }
     ;
@@ -469,8 +536,39 @@ print_args: /* empty */
     ;
 
 arg_list: expr
+    {
+        call_arg_count = 0;
+        // Determine the type of $1
+        Symbol* sym = lookup_symbol(current_scope, $1);
+        if (sym) {
+            call_arg_types[call_arg_count++] = sym->type;
+        } else if ($1 && strlen($1) == 3 && $1[0] == '\'' && $1[2] == '\'') {
+            call_arg_types[call_arg_count++] = "char";
+        } else if (is_number($1)) {
+            call_arg_types[call_arg_count++] = "int";
+        } else if (is_float($1)) {
+            call_arg_types[call_arg_count++] = "float";
+        } else {
+            call_arg_types[call_arg_count++] = current_type; // fallback
+        }
+    }
     | arg_list COMMA expr
-    ;
+    {
+        // Determine the type of $3
+        Symbol* sym = lookup_symbol(current_scope, $3);
+        if (sym) {
+            call_arg_types[call_arg_count++] = sym->type;
+        } else if ($3 && strlen($3) == 3 && $3[0] == '\'' && $3[2] == '\'') {
+            call_arg_types[call_arg_count++] = "char";
+        } else if (is_number($3)) {
+            call_arg_types[call_arg_count++] = "int";
+        } else if (is_float($3)) {
+            call_arg_types[call_arg_count++] = "float";
+        } else {
+            call_arg_types[call_arg_count++] = current_type; // fallback
+        }
+    }
+;
 
 scan_stmt: SCANFF LPAREN STR COMMA BIT_AND ID RPAREN SEMI
     {
@@ -807,6 +905,14 @@ conditional_expr: logical_or_expr
 additive_expr: multiplicative_expr
     | additive_expr ADD multiplicative_expr
     {
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
+
         char* temp = nextTemp();
         Quadruple* add_quad = createQuadruple(QuadOp_ADD, strdup($1), strdup($3), temp);
         addQuadruple(add_quad);
@@ -833,6 +939,14 @@ additive_expr: multiplicative_expr
     }
      | multiplicative_expr MULTIPLY unary_expr
     {
+
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* mul_quad = createQuadruple(QuadOp_MUL, strdup($1), strdup($3), temp);
         addQuadruple(mul_quad);
@@ -843,6 +957,13 @@ additive_expr: multiplicative_expr
     }
      | multiplicative_expr DIVIDE unary_expr
     {
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* div_quad = createQuadruple(QuadOp_DIV, strdup($1), strdup($3), temp);
         addQuadruple(div_quad);
@@ -853,6 +974,13 @@ additive_expr: multiplicative_expr
     }
      | multiplicative_expr MODULO unary_expr
     {
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* mod_quad = createQuadruple(QuadOp_MOD, strdup($1), strdup($3), temp);
         addQuadruple(mod_quad);
@@ -982,6 +1110,9 @@ function_call: ID LPAREN RPAREN
             fprintf(stderr, "Error: '%s' is not a function at line %d\n", $1, line_num);
             $$ = strdup("0"); // Default return value
         } else {
+            if (!check_function_call(sym, NULL, 0, line_num)) {
+                // Error already printed
+            }
             mark_symbol_used(current_scope, $1);
             char* temp = nextTemp(); // Allocate a temporary for the return value
             Quadruple* call_quad = createQuadruple(QuadOp_CALL, $1, "0", temp); // 0 arguments
@@ -999,6 +1130,9 @@ function_call: ID LPAREN RPAREN
             fprintf(stderr, "Error: '%s' is not a function at line %d\n", $1, line_num);
             $$ = strdup("0"); // Default return value
         } else {
+            if (!check_function_call(sym, call_arg_types, call_arg_count, line_num)) {
+                // Error already printed
+            }
             mark_symbol_used(current_scope, $1);
             char* temp = nextTemp(); // Allocate a temporary for the return value
             //char arg_count_str[10];
@@ -1008,7 +1142,7 @@ function_call: ID LPAREN RPAREN
             $$ = temp; // The function call's result is the temporary variable
         }
     }
-    ;
+;
 
 declaration: datatype declarator_list
     | CONST datatype const_declarator_list
@@ -1023,7 +1157,7 @@ const_declarator:
     {
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym) {
-            fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", $1, line_num);
+            fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", $1, sym->line_number);
         } else {
             // Type compatibility check for const initialization
             const char* left_type = current_type;
@@ -1089,8 +1223,7 @@ declarator:
                      current_scope->parent && 
                      sym->scope_depth == current_scope->parent->depth &&
                      // Make sure we're still in the same function
-                     strcmp(current_function, "") != 0 &&
-                     strstr(sym->name, current_function) != NULL) {
+                     strcmp(current_function, "") != 0 ) {
                 fprintf(stderr, "Error: Local variable '%s' at line %d shadows parameter declared at line %d\n", 
                         $1, line_num, sym->line_number);
                 is_redeclaration = true;
@@ -1110,7 +1243,7 @@ declarator:
     {
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym && sym->scope_depth == current_scope->depth) {
-            fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", $1, line_num);
+            fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", $1, sym->line_number);
         } else {
             // Type compatibility check for initialization
             const char* left_type = current_type;
@@ -1166,11 +1299,50 @@ declarator:
     ;
 return_stmt: RETURN expr SEMI
     {
+        // Track return count in current scope
+        current_scope->return_count++;
+        if (current_scope->return_count > 1) {
+            fprintf(stderr, "Warning: Multiple return statements in the same scope at line %d\n", line_num);
+        }
+        has_return_stmt = 1;
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        const char* func_return_type = func_sym ? func_sym->type : NULL;
+        const char* return_expr_type = NULL;
+        Symbol* expr_sym = lookup_symbol(current_scope, $2);
+        if (expr_sym) {
+            return_expr_type = expr_sym->type;
+        } else if ($2 && strlen($2) == 3 && $2[0] == '\'' && $2[2] == '\'') {
+            return_expr_type = "char";
+        } else if (is_number($2)) {
+            return_expr_type = "int";
+        } else if (is_float($2)) {
+            return_expr_type = "float";
+        } else {
+            return_expr_type = current_type; // fallback
+        }
+        if (func_return_type && !check_type_compatibility(func_return_type, return_expr_type)) {
+            fprintf(stderr, "Error: Return type mismatch in function '%s' at line %d ('%s' expected, got '%s')\n",
+                current_function, line_num, func_return_type, return_expr_type);
+        }
+    }
+    {
         // Generate a return quadruple with the expression value
         Quadruple* ret_quad = createQuadruple(QuadOp_RET, $2, NULL, NULL);
         addQuadruple(ret_quad);
     }
     | RETURN SEMI
+    {
+        current_scope->return_count++;
+        if (current_scope->return_count > 1) {
+            fprintf(stderr, "Warning: Multiple return statements in the same scope at line %d\n", line_num);
+        }
+        has_return_stmt = 1;
+        Symbol* func_sym = lookup_symbol(current_scope, current_function);
+        if (func_sym && strcmp(func_sym->type, "void") != 0) {
+            fprintf(stderr, "Warning: Non-void function '%s' should return a value at line %d\n",
+                current_function, line_num);
+        }
+    }
     {
         // Generate a return quadruple without a value (for void functions)
         Quadruple* ret_quad = createQuadruple(QuadOp_RET, NULL, NULL, NULL);
