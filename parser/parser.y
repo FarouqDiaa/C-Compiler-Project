@@ -42,6 +42,49 @@ int is_float(const char* s) {
     }
     return dot;
 }
+
+
+const char* get_expr_type(Scope* scope, const char* expr) {
+    if (!expr) return "unknown";
+    
+    // Check if it's a symbol in the symbol table
+    Symbol* sym = lookup_symbol(scope, expr);
+    if (sym) {
+        return sym->type;
+    }
+    
+    // Check if it's a character literal
+    if (strlen(expr) >= 3 && expr[0] == '\'' && expr[strlen(expr)-1] == '\'') {
+        return "char";
+    }
+    
+    // Check if it's a string literal
+    if (strlen(expr) >= 2 && expr[0] == '"' && expr[strlen(expr)-1] == '"') {
+        return "char*";  // String literals are char arrays/pointers
+    }
+    
+    // Check if it's an integer or float literal
+    if (is_number(expr)) {
+        return "int";
+    } else if (is_float(expr)) {
+        return "float";
+    }
+    
+    // Default case - could be a temporary variable or unknown
+    return "bool";
+}
+
+// Check if two types are compatible for arithmetic operations - strict equality
+bool check_arithmetic_compatibility(const char* type1, const char* type2) {
+    // Only return true if types are exactly equal
+    if (type1 && type2 && strcmp(type1, type2) == 0) {
+        return true;
+    }
+    
+    return false;
+}
+
+
 %}
 
 %union {
@@ -698,6 +741,14 @@ conditional_expr: logical_or_expr
 additive_expr: multiplicative_expr
     | additive_expr ADD multiplicative_expr
     {
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
+
         char* temp = nextTemp();
         Quadruple* add_quad = createQuadruple(QuadOp_ADD, strdup($1), strdup($3), temp);
         addQuadruple(add_quad);
@@ -724,6 +775,14 @@ additive_expr: multiplicative_expr
     }
      | multiplicative_expr MULTIPLY unary_expr
     {
+
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* mul_quad = createQuadruple(QuadOp_MUL, strdup($1), strdup($3), temp);
         addQuadruple(mul_quad);
@@ -734,6 +793,13 @@ additive_expr: multiplicative_expr
     }
      | multiplicative_expr DIVIDE unary_expr
     {
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* div_quad = createQuadruple(QuadOp_DIV, strdup($1), strdup($3), temp);
         addQuadruple(div_quad);
@@ -744,6 +810,13 @@ additive_expr: multiplicative_expr
     }
      | multiplicative_expr MODULO unary_expr
     {
+        const char* left_type = get_expr_type(current_scope, $1);
+        const char* right_type = get_expr_type(current_scope, $3);
+        
+        if (!check_arithmetic_compatibility(left_type, right_type)) {
+            fprintf(stderr, "Error: Invalid operands to binary + (have '%s' and '%s') at line %d\n",
+                    left_type, right_type, line_num);
+        }
         char* temp = nextTemp();
         Quadruple* mod_quad = createQuadruple(QuadOp_MOD, strdup($1), strdup($3), temp);
         addQuadruple(mod_quad);
