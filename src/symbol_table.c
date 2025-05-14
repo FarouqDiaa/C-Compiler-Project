@@ -78,13 +78,6 @@ bool check_function_call(Symbol* func_sym, char** arg_types, int arg_count, int 
 // Insert a symbol into the given scope
 void insert_symbol_in_scope(Scope* scope, const char* name, const char* type, 
                              SymbolKind kind, bool is_const, int line_number) {
-    // Check if symbol already exists in this scope
-    for (int i = 0; i < scope->symbol_count; i++) {
-        if (strcmp(scope->symbols[i].name, name) == 0) {
-            fprintf(stderr, "Error: Symbol '%s' already declared in this scope\n", name);
-            return;
-        }
-    }
 
     // Resize if needed
     if (scope->symbol_count >= scope->max_symbols) {

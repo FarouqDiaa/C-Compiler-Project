@@ -1,13 +1,10 @@
 // Test complex type errors and compatibility issues
+
+int func(int y)
+{
+  
+}
 int main() {
-    int x = 10;
-    float y = 3.14;
-    char c = 'A';
-    
-    
-    // Operation between incompatible types
-    int result = x / 5;    // Should generate warning about char-to-int conversion
-    float complex = y / 'x';  // Error: operation with incompatible types
-    
+    int y;
     return 0;
 }

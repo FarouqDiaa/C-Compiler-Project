@@ -223,15 +223,11 @@ parameter_list:
 
 parameter_declaration: 
     datatype ID
-    {
-        Symbol* sym = lookup_symbol(current_scope, $2);
-        if (sym) {
-            fprintf(stderr, "Error: Parameter '%s' already declared at line %d\n", $2, line_num);
-        } else {
-            insert_symbol_in_scope(current_scope, $2, current_type, SYM_PARAMETER, false, line_num);
-            mark_symbol_initialized(current_scope, $2);
-            strcpy(func_param_list[func_param_count++].type, current_type);
-        }
+    {   
+        
+        insert_symbol_in_scope(current_scope, $2, current_type, SYM_PARAMETER, false, line_num);
+        mark_symbol_initialized(current_scope, $2);
+        strcpy(func_param_list[func_param_count++].type, current_type);   
     }
     | datatype MULTIPLY ID
     {
@@ -979,7 +975,7 @@ const_declarator:
     {
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym) {
-            fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", $1, line_num);
+            fprintf(stderr, "Error: Const variable '%s' already declared at line %d\n", $1, sym->line_number);
         } else {
             // Type compatibility check for const initialization
             const char* left_type = current_type;
@@ -1045,8 +1041,7 @@ declarator:
                      current_scope->parent && 
                      sym->scope_depth == current_scope->parent->depth &&
                      // Make sure we're still in the same function
-                     strcmp(current_function, "") != 0 &&
-                     strstr(sym->name, current_function) != NULL) {
+                     strcmp(current_function, "") != 0 ) {
                 fprintf(stderr, "Error: Local variable '%s' at line %d shadows parameter declared at line %d\n", 
                         $1, line_num, sym->line_number);
                 is_redeclaration = true;
@@ -1066,7 +1061,7 @@ declarator:
     {
         Symbol* sym = lookup_symbol(current_scope, $1);
         if (sym && sym->scope_depth == current_scope->depth) {
-            fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", $1, line_num);
+            fprintf(stderr, "Error: Variable '%s' already declared at line %d\n", $1, sym->line_number);
         } else {
             // Type compatibility check for initialization
             const char* left_type = current_type;
