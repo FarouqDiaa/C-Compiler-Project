@@ -58,7 +58,9 @@ typedef enum QuadOp {
     QuadOp_JLE,    // Jump if less than or equal
     QuadOp_JGE,    // Jump if greater than or equal
     QuadOp_LABEL,  // Label marker
-
+    QuadOp_FUNC_LABEL, // Function label
+    QuadOp_LOOP_START, // Loop start marker
+    QuadOp_LOOP_END,   // Loop end marker
     // Function call operations
     QuadOp_CALL,
     QuadOp_RET,
@@ -76,10 +78,13 @@ typedef struct Quadruple {
     char* result;  // Result
 } Quadruple;
 
+
 // Function prototypes
 Quadruple* createQuadruple(QuadOp op, char* arg1, char* arg2, char* result);
 void addQuadruple(Quadruple* quad);
 void printQuadruples();
 const char* quadOpToString(QuadOp op); // New function prototype
+void writeQuadruplesToFile(const char* filename);
+void rearrangeQuadrupleLoops(int loopDepth);
 
 #endif

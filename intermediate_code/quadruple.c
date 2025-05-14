@@ -84,10 +84,48 @@ const char* quadOpToString(QuadOp op) {
         case QuadOp_RET: return "RET";
         case QuadOp_PRINT: return "PRINT";
         case QuadOp_SCAN: return "SCAN";
+        case QuadOp_FUNC_LABEL: return "FUNC_LABEL";
+        case QuadOp_LOOP_START: return "LOOP_START";
+        case QuadOp_LOOP_END: return "LOOP_END";
         default: return "UNKNOWN";
     }
 }
 
+void rearrangeQuadrupleLoops(int loopDepth) {
+    for (int i = 0; i < quadCount; i++) {
+        // check if the quadruple is a loop end
+        if (quadruples[i]->op == QuadOp_LOOP_START) {
+            // move it backward until the nearest ComparisonOp
+            for (int j = i - 1; j >= 0; j--) {
+                if (quadruples[j]->op == QuadOp_LT || quadruples[j]->op == QuadOp_GT || quadruples[j]->op == QuadOp_LTE || quadruples[j]->op == QuadOp_GTE || quadruples[j]->op == QuadOp_EQ || quadruples[j]->op == QuadOp_NE) {
+                    Quadruple* temp = quadruples[j];
+                    quadruples[j] = quadruples[j + 1];
+                    quadruples[j + 1] = temp;
+                    break;
+                }
+                else {
+                    // move the quadruple to the new position
+                    Quadruple* temp = quadruples[j];
+                    quadruples[j] = quadruples[j + 1];
+                    quadruples[j + 1] = temp;
+                }
+            }
+        }
+        else if (quadruples[i]->op == QuadOp_JEQ) {
+            for (int j = i - 1; j >= 0; j--) {
+                if (quadruples[j]->op == QuadOp_LT || quadruples[j]->op == QuadOp_GT || quadruples[j]->op == QuadOp_LTE || quadruples[j]->op == QuadOp_GTE || quadruples[j]->op == QuadOp_EQ || quadruples[j]->op == QuadOp_NE) {
+                    break;
+                }
+                else {
+                    // move the quadruple to the new position
+                    Quadruple* temp = quadruples[j];
+                    quadruples[j] = quadruples[j + 1];
+                    quadruples[j + 1] = temp;
+                }
+            }
+        }
+    }
+}
 
 // Function to print all quadruples
 void printQuadruples() {
@@ -95,4 +133,18 @@ void printQuadruples() {
     for (int i = 0; i < quadCount; i++) {
         printf("%d:  %s, %s, %s, %s\n", i, quadOpToString(quadruples[i]->op), quadruples[i]->arg1, quadruples[i]->arg2, quadruples[i]->result);
     }
+}
+
+void writeQuadruplesToFile(const char* filename) {
+    FILE* file = fopen(filename, "w");
+    if (file == NULL) {
+        fprintf(stderr, "Error: Could not open file %s for writing\n", filename);
+        return;
+    }
+
+    for (int i = 0; i < quadCount; i++) {
+        fprintf(file, "%d: %s, %s, %s, %s\n", i, quadOpToString(quadruples[i]->op), quadruples[i]->arg1 ? quadruples[i]->arg1 : "NULL", quadruples[i]->arg2 ? quadruples[i]->arg2 : "NULL", quadruples[i]->result ? quadruples[i]->result : "NULL");
+    }
+
+    fclose(file);
 }
