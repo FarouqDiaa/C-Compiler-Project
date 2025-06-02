@@ -20,6 +20,7 @@ space [ \t]
 "float"     { return FLOAT; }
 "double"    { return DOUBLE; }
 "char"      { return CHAR; }
+"bool"      { return BOOL; }
 "const"     { return CONST; }
 "void"      { return VOID; }
 "if"        { return IF; }
@@ -84,8 +85,8 @@ space [ \t]
 "*"     { return MULTIPLY; }
 "%"     { return MODULO; }
 "/"     { return DIVIDE; }
-"++"    { return UNARY; }
-"--"    { return UNARY; }
+"++"    { return UNARY_INC; }
+"--"    { return UNARY_DEC; }
 ";"     { return SEMI; }
 
 "{"     { return LBRACE; }

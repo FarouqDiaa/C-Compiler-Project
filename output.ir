@@ -1,0 +1,13 @@
+0: ASSIGN, 10, NULL, a
+1: CALL, func, NULL, t0
+2: FUNC_LABEL, func, NULL, NULL
+3: ASSIGN, 100, NULL, y
+4: RET, 10, NULL, NULL
+5: ASSIGN, t0, NULL, z
+6: LT, 10, 0, t1
+7: JEQ, t1, 0, L0
+8: MUL, 4, 2, t2
+9: SUB, y, t2, t3
+10: ASSIGN, t3, NULL, a
+11: LABEL, L0, NULL, NULL
+12: RET, 0, NULL, NULL

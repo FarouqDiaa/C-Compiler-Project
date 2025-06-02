@@ -1,132 +1,20 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-// Global variables
-int global_var = 100;
-float pi = 3.14159;
-const int x=66;
-double y = 2.3;
-
-// Function prototypes
-int factorial(int n);
-float calculate_area(float radius);
-void swap(int *a, int *b);
-
-// Recursive function
-int factorial(int n) {
-    if (n <= 1) {
-        return 1;
-    } else {
-        return n * factorial(n - 1);
-    }
+// Test complex type errors and compatibility issues
+int func(int y)
+{
+  int y = 100;
+  return 10;
 }
-
-// Function with return value
-float calculate_area(float radius) {
-    return pi * radius * radius;
+int func2(int y)
+{
+  int g = 100;
+  return 10;
 }
-
-// Function with pointer parameters
-void swap(int *a, int *b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-// Main function with complex control structures
 int main() {
-    // Various declarations with initializations
-    int *point = NULL;
-    int a = 10, b = 20, c = 0;
-    float f1 = 1.5, f2 = 2.3;
-    char ch = 'X';
-    char str[20] = "Test String";
-    
-    // Compound assignment operators
-    a += 5;    // a = a + 5
-    b -= 3;    // b = b - 3
-    f1 *= 2.0; // f1 = f1 * 2.0
-    f2 /= 0.5; // f2 = f2 / 0.5
-    c %= 2;    // c = c % 2
-    
-    // Complex expressions with precedence
-    int result = (a + b) * c / (2 + 3) - global_var % 10;
-    
-    // Nested if-else with logical operators
-    if (a > 0 && b < 30 || !(c == 0)) {
-        if (a >= 15) {
-            printf("a is greater than or equal to 15\n");
-        } else if (b <= 17) {
-            printf("b is less than or equal to 17\n");
-        } else {
-            printf("Neither condition met\n");
-        }
+    int a = 10;
+    int z = func(10);
+    if (10 < 0) {
+      int a = y - 4 *2;
+      
     }
-    
-    // Switch statement with break and default
-    switch (a) {
-        case 10:
-            printf("a is 10\n");
-            break;
-        case 15:
-            printf("a is 15\n");
-            break;
-        case 20:
-            printf("a is 20\n");
-            break;
-        default:
-            printf("a is something else\n");
-    }
-    
-    // While loop with continue and break
-    int i = 0;
-    while (i < 10) {
-        i++;
-        if (i % 2 == 0) {
-            continue; // Skip even numbers
-        }
-        printf("Odd number: %d\n", i);
-        if (i > 7) {
-            break; // Exit early
-        }
-    }
-    
-    // For loop with multiple initializations and updates
-    for (int i = 0, j = 10; i < j; i++) {
-        printf("i = %d, j = %d\n", i, j);
-    }
-
-    do {
-        printf("Value of i: %d\n", i);
-        i++;
-        for(int i=0;i<5;i++){
-            printf("i = %d, j = %d\n", i, j);
-        }
-    } while (i <= 5);
-    
-    // Nested loops
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            if (i == j) {
-                printf("Diagonal element [%d,%d]\n", i, j);
-            }
-        }
-    }
-    // Function calls with different parameter types
-    int fact = factorial(5);
-    float area = calculate_area(2.5);
-    
-    // Calling function with address operator
-    swap(&a, &b);
-    
-    // Scanf with address operator
-    int user_input;
-    printf("Enter a number: ");
-    scanf("%d", &user_input);
-    
-    // Conditional expression (ternary operator)
-    int max = (a > b) ? a : b;
-    
-    // Return statement
     return 0;
 }

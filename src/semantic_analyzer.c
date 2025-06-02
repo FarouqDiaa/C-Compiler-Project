@@ -1,212 +1,324 @@
-#include "../include/semantic_analyzer.h"
-#include "../include/symbol_table.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <ctype.h>
+#include <limits.h>
+#include "../include/symbol_table.h"
 
-// External line number from lexer
+extern Scope *current_scope;
 extern int line_num;
 
-// Track variable usage for unused variable warnings
-typedef struct
-{
-    char name[50];
-    int used;
-} VariableUsage;
+int parse_expression(); // Forward declaration
 
-#define MAX_VARIABLES 100
-static VariableUsage var_usage[MAX_VARIABLES];
-static int usage_count = 0;
-
-// Initialize semantic analyzer
-void init_semantic_analyzer()
+// Type compatibility definitions
+typedef enum
 {
-    usage_count = 0;
+    TYPE_INT,
+    TYPE_FLOAT,
+    TYPE_DOUBLE,
+    TYPE_CHAR,
+    TYPE_VOID,
+    TYPE_BOOL,
+    TYPE_UNKNOWN
+} BasicType;
+
+// Function to extract the basic type from a type string
+BasicType get_basic_type(const char *type_str)
+{
+    if (strstr(type_str, "int") != NULL)
+        return TYPE_INT;
+    if (strstr(type_str, "float") != NULL)
+        return TYPE_FLOAT;
+    if (strstr(type_str, "double") != NULL)
+        return TYPE_DOUBLE;
+    if (strstr(type_str, "char") != NULL)
+        return TYPE_CHAR;
+    if (strstr(type_str, "void") != NULL)
+        return TYPE_VOID;
+    if (strstr(type_str, "bool") != NULL)    // Add this line
+        return TYPE_BOOL;
+    return TYPE_UNKNOWN;
 }
 
-// Check if two types are compatible for assignment and operations
-int is_type_compatible(const char *type1, const char *type2)
+// Function to check type compatibility in assignments
+bool check_type_compatibility(const char *left_type, const char *right_type)
 {
-    // Same types are always compatible
-    if (strcmp(type1, type2) == 0)
-    {
-        return 1;
+    BasicType left_basic = get_basic_type(left_type);
+    BasicType right_basic = get_basic_type(right_type);
+
+    // Same basic types are always compatible
+    if (left_basic == right_basic)
+        return true;
+
+    // Allow assignment between bool and int (both directions)
+    if ((left_basic == TYPE_BOOL && right_basic == TYPE_INT) ||
+        (left_basic == TYPE_INT && right_basic == TYPE_BOOL)) {
+        return true;
     }
 
-    // Allow int-to-float conversion (implicit widening)
-    if (strcmp(type1, "float") == 0 && strcmp(type2, "int") == 0 ||
-        strcmp(type1, "int") == 0 && strcmp(type2, "float") == 0)
+    // Numeric types have some compatibility
+    if ((left_basic == TYPE_INT || left_basic == TYPE_FLOAT || left_basic == TYPE_DOUBLE) &&
+        (right_basic == TYPE_INT || right_basic == TYPE_FLOAT || right_basic == TYPE_DOUBLE))
     {
-        return 1;
-    }
+        // Assigning smaller types to larger types is allowed
+        if (left_basic == TYPE_DOUBLE)
+            return true;
+        if (left_basic == TYPE_FLOAT && right_basic == TYPE_INT)
+            return true;
 
-    // Allow char-to-int conversion
-    if (strcmp(type1, "int") == 0 && strcmp(type2, "char") == 0 ||
-        strcmp(type1, "char") == 0 && strcmp(type2, "int") == 0)
-    {
-        return 1;
-    }
 
-    // Other combinations are incompatible
-    return 0;
+        // Otherwise, warn about potential precision loss
+        fprintf(stderr, "Warning at line %d: Possible precision loss in assignment from %s to %s\n",
+            line_num, right_type, left_type);
+    return true;
 }
 
-// Check if a variable's type is compatible with an expression's type
-void check_type_compatibility(const char *var_name, const char *expr_type)
+// One or both types are unknown
+if (left_basic == TYPE_UNKNOWN || right_basic == TYPE_UNKNOWN)
 {
-    char var_type[20];
-
-    // Get the variable's type from the symbol table
-    if (get_symbol_type(var_name, var_type) == 0)
-    {
-        printf("Error at line %d: Variable '%s' not declared.\n", line_num, var_name);
-        return;
-    }
-
-    // Check compatibility
-    if (!is_type_compatible(var_type, expr_type))
-    {
-        printf("Error at line %d: Type mismatch in assignment to '%s'. Cannot convert from '%s' to '%s'.\n",
-               line_num, var_name, expr_type, var_type);
-        return;
-    }
-
-    // Record that the variable was used in an assignment
-    record_variable_usage(var_name);
+    fprintf(stderr, "Error at line %d: Unknown type in assignment\n", line_num);
+    return false;
 }
 
-// Determine the resulting type of a binary operation
-const char *check_binary_op_types(const char *left_type, const char *right_type, const char *op)
-{
-    // For arithmetic operators (+, -, *, /, %)
-    if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
-        strcmp(op, "*") == 0 || strcmp(op, "/") == 0)
-    {
-
-        // Two floats yield a float
-        if (strcmp(left_type, "float") == 0 || strcmp(right_type, "float") == 0)
-        {
-            return "float";
-        }
-
-        // Two ints yield an int
-        if (strcmp(left_type, "int") == 0 && strcmp(right_type, "int") == 0)
-        {
-            return "int";
-        }
-
-        // Char operations are promoted to int
-        if ((strcmp(left_type, "char") == 0 || strcmp(left_type, "int") == 0) &&
-            (strcmp(right_type, "char") == 0 || strcmp(right_type, "int") == 0))
-        {
-            return "int";
-        }
-    }
-
-    // For modulo operator (%), both operands must be integers
-    if (strcmp(op, "%") == 0)
-    {
-        if (strcmp(left_type, "int") == 0 && strcmp(right_type, "int") == 0)
-        {
-            return "int";
-        }
-        else
-        {
-            printf("Error at line %d: Modulo operator requires integer operands.\n", line_num);
-            return "int"; // Default to prevent cascading errors
-        }
-    }
-
-    // For comparison operators, result is always an int (boolean)
-    if (strcmp(op, "<") == 0 || strcmp(op, ">") == 0 ||
-        strcmp(op, "<=") == 0 || strcmp(op, ">=") == 0 ||
-        strcmp(op, "==") == 0 || strcmp(op, "!=") == 0)
-    {
-
-        // Check if types are comparable
-        if (!is_type_compatible(left_type, right_type) &&
-            !is_type_compatible(right_type, left_type))
-        {
-            printf("Error at line %d: Cannot compare '%s' with '%s'.\n",
-                   line_num, left_type, right_type);
-        }
-
-        return "int"; // Comparison result is always a boolean (int)
-    }
-
-    // For logical operators (&&, ||)
-    if (strcmp(op, "&&") == 0 || strcmp(op, "||") == 0)
-    {
-        return "int"; // Logical result is always a boolean (int)
-    }
-
-    // Default case - incompatible types
-    printf("Error at line %d: Incompatible types '%s' and '%s' for operator '%s'.\n",
-           line_num, left_type, right_type, op);
-    return "int"; // Default to prevent cascading errors
+return false;
 }
 
-// Record variable usage to track unused variables
-void record_variable_usage(const char *name)
-{
-    // Check if variable is already in the usage table
-    for (int i = 0; i < usage_count; i++)
-    {
-        if (strcmp(var_usage[i].name, name) == 0)
-        {
-            var_usage[i].used = 1; // Mark as used
-            return;
-        }
-    }
+// ---------------- Constant Checking ----------------
 
-    // Add variable to usage table if not found
-    if (usage_count < MAX_VARIABLES)
-    {
-        strcpy(var_usage[usage_count].name, name);
-        var_usage[usage_count].used = 1; // Mark as used
-        usage_count++;
-    }
+// Global pointer for parsing
+const char *expr_ptr;
+
+void skip_spaces()
+{
+    while (isspace(*expr_ptr))
+        expr_ptr++;
 }
 
-// Check for unused variables and generate warnings
-void check_unused_variables()
+// int parse_expression(); // +, -
+// int parse_term();       // *, /
+// int parse_factor();     // numbers, ()
+
+int parse_number()
 {
-    char var_type[20];
-
-    for (int i = 0; i < symbol_count; i++)
+    skip_spaces();
+    int value = 0;
+    while (isdigit(*expr_ptr))
     {
-        // Skip function names and other non-variables
-        get_symbol_type(symbols[i].name, var_type);
-        if (strcmp(var_type, "function") == 0)
-        {
-            continue;
-        }
+        value = value * 10 + (*expr_ptr - '0');
+        expr_ptr++;
+    }
+    return value;
+}
 
-        // Check if variable has been used
-        int used = 0;
-        for (int j = 0; j < usage_count; j++)
+int parse_factor()
+{
+    skip_spaces();
+    if (*expr_ptr == '(')
+    {
+        expr_ptr++; // skip '('
+        int result = parse_expression();
+        if (*expr_ptr == ')')
+            expr_ptr++;
+        return result;
+    }
+    else
+    {
+        return parse_number();
+    }
+}
+int parse_term()
+{
+    int result = parse_factor();
+    skip_spaces();
+    while (*expr_ptr == '*' || *expr_ptr == '/')
+    {
+        char op = *expr_ptr++;
+        int right = parse_factor();
+        if (op == '*')
+            result *= right;
+        else if (op == '/')
         {
-            if (strcmp(var_usage[j].name, symbols[i].name) == 0)
+            if (right == 0)
             {
-                used = var_usage[j].used;
-                break;
+                fprintf(stderr, "Warning at line %d: Division by zero detected\n", line_num);
+                // Using a large value to indicate error
+                return INT_MAX;
             }
-        }
-
-        // Warn about unused variables
-        if (!used)
-        {
-            printf("Warning: Variable '%s' declared but never used.\n", symbols[i].name);
+            result /= right;
         }
     }
+    return result;
 }
 
-// Perform full semantic analysis
+int parse_expression()
+{
+    int result = parse_term();
+    skip_spaces();
+    while (*expr_ptr == '+' || *expr_ptr == '-')
+    {
+        char op = *expr_ptr++;
+        int right = parse_term();
+        if (op == '+')
+            result += right;
+        else
+            result -= right;
+    }
+    return result;
+}
+
+// Check if an expression is constant and evaluate it
+bool is_constant_expression(const char *expr)
+{
+    // Check for illegal characters
+    const char *scan = expr;
+    while (*scan)
+    {
+        if (!isdigit(*scan) && !strchr("+-*/() \t\r\n", *scan))
+        {
+            return false;
+        }
+        scan++;
+    }
+
+    expr_ptr = expr;
+    int result = parse_expression();
+    skip_spaces();
+    return *expr_ptr == '\0'; // valid only if entire input was consumed
+}
+
+bool evaluate_constant_expression(const char *expr, int *out_result)
+{
+    if (!is_constant_expression(expr))
+        return false;
+    expr_ptr = expr;
+    *out_result = parse_expression();
+    return true;
+}
+// ---------------- End of Constant Checking ----------------
+// Function to check for assignment to a constant variable
+bool check_const_assignment(Symbol *sym)
+{
+    if (sym && sym->is_const && sym->is_initialized)
+    {
+        fprintf(stderr, "Error at line %d: Cannot modify constant variable '%s'\n",
+                line_num, sym->name);
+        return false;
+    }
+    return true;
+}
+
+// Function to check if variable is used before initialization
+bool check_initialization(Scope *scope, const char *name)
+{
+    Symbol *sym = lookup_symbol(scope, name);
+    if (sym && !sym->is_initialized)
+    {
+        fprintf(stderr, "Warning at line %d: Variable '%s' may be used before initialization\n",
+                line_num, name);
+        return false;
+    }
+    return true;
+}
+
+// Function to check for multiple declarations in the same scope
+bool check_duplicate_declaration(Scope *scope, const char *name)
+{
+    // Check if symbol exists in the current scope (not parent scopes)
+    for (int i = 0; i < scope->symbol_count; i++)
+    {
+        if (strcmp(scope->symbols[i].name, name) == 0)
+        {
+            fprintf(stderr, "Error at line %d: Redeclaration of '%s' in the same scope\n",
+                    line_num, name);
+            return false;
+        }
+    }
+    return true;
+}
+
+// Function to verify assignment compatibility
+bool check_assignment_compatibility(Scope *scope, const char *left_var, const char *right_expr)
+{
+    Symbol *left_sym = lookup_symbol(scope, left_var);
+    if (!left_sym)
+    {
+        fprintf(stderr, "Error at line %d: Undeclared variable '%s'\n", line_num, left_var);
+        return false;
+    }
+
+    // Check for assignment to a constant
+    if (!check_const_assignment(left_sym))
+    {
+        return false;
+    }
+
+    // Mark the variable as initialized
+    mark_symbol_initialized(scope, left_var);
+
+    // For a proper type check, we need to know the type of the right expression
+    Symbol *right_sym = lookup_symbol(scope, right_expr);
+    if (right_sym)
+    {
+        // If right expression is a variable, check its type
+        return check_type_compatibility(left_sym->type, right_sym->type);
+    }
+
+    // Default case for literals and complex expressions
+    return true;
+}
+
+// Function to analyze a binary operation
+bool analyze_binary_operation(Scope *scope, const char *left, const char *op, const char *right)
+{
+    Symbol *left_sym = lookup_symbol(scope, left);
+    Symbol *right_sym = lookup_symbol(scope, right);
+
+    // Check if operands are declared
+    if (left_sym == NULL && !is_constant_expression(left))
+    {
+        fprintf(stderr, "Error at line %d: Undeclared identifier '%s'\n", line_num, left);
+        return false;
+    }
+
+    if (right_sym == NULL && !is_constant_expression(right))
+    {
+        fprintf(stderr, "Error at line %d: Undeclared identifier '%s'\n", line_num, right);
+        return false;
+    }
+
+    // Check if variables are initialized
+    if (left_sym && !left_sym->is_initialized)
+    {
+        fprintf(stderr, "Warning at line %d: Variable '%s' may be used before initialization\n",
+                line_num, left);
+    }
+
+    if (right_sym && !right_sym->is_initialized)
+    {
+        fprintf(stderr, "Warning at line %d: Variable '%s' may be used before initialization\n",
+                line_num, right);
+    }
+
+    // Mark variables as used
+    if (left_sym)
+        mark_symbol_used(scope, left);
+    if (right_sym)
+        mark_symbol_used(scope, right);
+
+    return true;
+}
+
+// Main entry point for semantic analysis
 void semantic_analysis()
 {
-    // Check for unused variables
-    check_unused_variables();
+    printf("Starting semantic analysis...\n");
 
-    // Print the symbol table
-    print_symbol_table();
+    // At this point, the parser has already built the symbol table
+    // and performed basic semantic checks during parsing
+
+    // Additional semantic checks could be done here, such as
+    // more complex type compatibility rules, function call validation, etc.
+
+    printf("Semantic analysis completed.\n");
 }
